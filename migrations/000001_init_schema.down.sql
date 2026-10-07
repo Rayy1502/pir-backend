@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS tindak_lanjut_bukti;
+DROP TABLE IF EXISTS tindak_lanjut;
+DROP TABLE IF EXISTS laporan_temuan;
+DROP TABLE IF EXISTS laporan_pir;
+DROP TABLE IF EXISTS survey_jawaban;
+DROP TABLE IF EXISTS survey_pertanyaan;
+DROP TABLE IF EXISTS pir_form;
+DROP TABLE IF EXISTS notifikasi;
+DROP TABLE IF EXISTS proyek;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS pengaturan;

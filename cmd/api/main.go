@@ -1,0 +1,98 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+
+	"github.com/Rayy1502/pir-backend/internal/config"
+	"github.com/Rayy1502/pir-backend/internal/db"
+	"github.com/Rayy1502/pir-backend/pkg/response"
+)
+
+func main() {
+	cfg := config.Load()
+
+	// Connect ke SQL Server
+	database, err := db.Connect(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("DB connection failed: %v", err)
+	}
+	defer database.Close()
+	log.Println("✅ Connected to SQL Server")
+
+	// Setup router
+	r := chi.NewRouter()
+	r.Use(chimw.RequestID)
+	r.Use(chimw.RealIP)
+	r.Use(chimw.Logger)
+	r.Use(chimw.Recoverer)
+	r.Use(chimw.Timeout(60 * time.Second))
+
+	// CORS
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{cfg.CORSOrigin},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+
+	// Health check
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		if err := database.PingContext(r.Context()); err != nil {
+			response.Error(w, http.StatusServiceUnavailable, "DB_ERROR", "Database unreachable", nil)
+			return
+		}
+		response.Success(w, map[string]any{
+			"status": "ok",
+			"app":    "PIR",
+			"time":   time.Now().Format(time.RFC3339),
+		}, nil)
+	})
+
+	// API v1
+	r.Route("/v1", func(r chi.Router) {
+		// TODO: register handler auth, proyek, pir, dll
+	})
+
+	// Server
+	addr := fmt.Sprintf(":%s", cfg.AppPort)
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Graceful shutdown
+	go func() {
+		log.Printf("🚀 PIR Backend running on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("🛑 Shutting down server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+	log.Println("✅ Server exited gracefully")
+}
