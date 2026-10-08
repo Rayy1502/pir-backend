@@ -38,11 +38,20 @@ func main() {
 	// 3. Init repositories
 	userRepo := repository.NewUserRepository(database)
 
+	// init repository pengaturan
+	pengaturanRepo := repository.NewPengaturanRepository(database)
+
 	// 4. Init services
 	authService := service.NewAuthService(cfg, userRepo)
 
+	// init service pengaturan
+	pengaturanService := service.NewPengaturanService(pengaturanRepo)
+
 	// 5. Init handlers
 	authHandler := handler.NewAuthHandler(authService)
+
+	// init handler pengaturan
+	pengaturanHandler := handler.NewPengaturanHandler(pengaturanService)
 
 	// 6. Setup router  ← INI YANG HILANG DI FILE KAMU
 	r := chi.NewRouter()
@@ -82,9 +91,15 @@ func main() {
 
 		// Auth routes (protected)
 		r.Group(func(r chi.Router) {
+
+			//auth
 			r.Use(middleware.JWTAuth(cfg.JWTSecret))
 			r.Get("/auth/me", authHandler.Me)
 			r.Post("/auth/logout", authHandler.Logout)
+			
+			//pengaturan
+			r.Get("/pengaturan", pengaturanHandler.GetAll)
+			r.Put("/pengaturan/{unit}", pengaturanHandler.Update)
 		})
 	})
 
