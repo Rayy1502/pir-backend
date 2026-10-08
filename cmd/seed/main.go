@@ -40,7 +40,7 @@ func main() {
 		PasswordHash: hashed,
 		Jabatan:      "Staff Divisi TI",
 		Divisi:       "Teknologi Informasi",
-		Unit:         "PT PUSRI Palembang",
+		Unit:         "Tata Kelola & Perencanaan",
 		Role:         "staff_ti",
 		IsActive:     true,
 	}
