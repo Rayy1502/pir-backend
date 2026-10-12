@@ -41,17 +41,27 @@ func main() {
 	// init repository pengaturan
 	pengaturanRepo := repository.NewPengaturanRepository(database)
 
+	//init repository proyek
+	proyekRepo := repository.NewProyekRepository(database)
+
 	// 4. Init services
 	authService := service.NewAuthService(cfg, userRepo)
 
 	// init service pengaturan
 	pengaturanService := service.NewPengaturanService(pengaturanRepo)
 
+	//init service proyek
+	proyekService := service.NewProyekService(proyekRepo)
+
 	// 5. Init handlers
 	authHandler := handler.NewAuthHandler(authService)
 
 	// init handler pengaturan
 	pengaturanHandler := handler.NewPengaturanHandler(pengaturanService)
+
+	// init handler proyek
+	proyekHandler := handler.NewProyekHandler(proyekService)
+	dashboardHandler := handler.NewDashboardHandler(proyekService)
 
 	// 6. Setup router  ← INI YANG HILANG DI FILE KAMU
 	r := chi.NewRouter()
@@ -96,10 +106,18 @@ func main() {
 			r.Use(middleware.JWTAuth(cfg.JWTSecret))
 			r.Get("/auth/me", authHandler.Me)
 			r.Post("/auth/logout", authHandler.Logout)
-			
+
 			//pengaturan
 			r.Get("/pengaturan", pengaturanHandler.GetAll)
 			r.Put("/pengaturan/{unit}", pengaturanHandler.Update)
+
+			// Proyek
+			r.Get("/proyek", proyekHandler.GetAll)
+			r.Get("/proyek/{id}", proyekHandler.GetByID)
+
+			// Dashboard
+			r.Get("/dashboard/stats", dashboardHandler.Stats)
+			r.Get("/dashboard/statistik-pir", dashboardHandler.StatistikPIR)
 		})
 	})
 
