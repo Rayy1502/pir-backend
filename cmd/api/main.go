@@ -81,6 +81,12 @@ func main() {
 		MaxAge:           300,
 	}))
 
+	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		response.Success(w, map[string]string{
+			"message": "PIR Backend API is running",
+		}, nil)
+	})
+
 	// 8. Health check
 	r.Get("/health", func(w http.ResponseWriter, req *http.Request) {
 		if err := database.PingContext(req.Context()); err != nil {
