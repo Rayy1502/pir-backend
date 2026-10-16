@@ -37,31 +37,22 @@ func main() {
 
 	// 3. Init repositories
 	userRepo := repository.NewUserRepository(database)
-
-	// init repository pengaturan
 	pengaturanRepo := repository.NewPengaturanRepository(database)
-
-	//init repository proyek
 	proyekRepo := repository.NewProyekRepository(database)
+	pirRepo := repository.NewPIRRepository(database)
 
 	// 4. Init services
 	authService := service.NewAuthService(cfg, userRepo)
-
-	// init service pengaturan
 	pengaturanService := service.NewPengaturanService(pengaturanRepo)
-
-	//init service proyek
 	proyekService := service.NewProyekService(proyekRepo)
+	pirService := service.NewPIRService(pirRepo)
 
 	// 5. Init handlers
 	authHandler := handler.NewAuthHandler(authService)
-
-	// init handler pengaturan
 	pengaturanHandler := handler.NewPengaturanHandler(pengaturanService)
-
-	// init handler proyek
 	proyekHandler := handler.NewProyekHandler(proyekService)
 	dashboardHandler := handler.NewDashboardHandler(proyekService)
+	pirHandler := handler.NewPIRHandler(pirService)
 
 	// 6. Setup router  ← INI YANG HILANG DI FILE KAMU
 	r := chi.NewRouter()
@@ -124,6 +115,12 @@ func main() {
 			// Dashboard
 			r.Get("/dashboard/stats", dashboardHandler.Stats)
 			r.Get("/dashboard/statistik-pir", dashboardHandler.StatistikPIR)
+
+			// PIR Form
+			r.Post("/pir", pirHandler.Create)
+			r.Get("/pir", pirHandler.GetByProyekOrList)
+			r.Get("/pir/{id}", pirHandler.GetByID)
+			r.Put("/pir/{id}", pirHandler.Update)
 		})
 	})
 

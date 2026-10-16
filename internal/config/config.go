@@ -9,19 +9,13 @@ import (
 )
 
 type Config struct {
-	AppEnv         string
-	AppPort        string
-	DatabaseURL    string
-	JWTSecret      string
-	JWTAccessTTL   time.Duration
-	JWTRefreshTTL  time.Duration
-	RedisURL       string
-	MinIOEndpoint  string
-	MinIOAccessKey string
-	MinIOSecretKey string
-	MinIOBucket    string
-	MinIOUseSSL    bool
-	CORSOrigin     string
+	AppEnv        string
+	AppPort       string
+	DatabaseURL   string
+	JWTSecret     string
+	JWTAccessTTL  time.Duration
+	JWTRefreshTTL time.Duration
+	CORSOrigin    string
 }
 
 func Load() *Config {
@@ -33,19 +27,13 @@ func Load() *Config {
 	refreshTTL, _ := time.ParseDuration(getEnv("JWT_REFRESH_TTL", "168h"))
 
 	return &Config{
-		AppEnv:         getEnv("APP_ENV", "development"),
-		AppPort:        getEnv("APP_PORT", "8080"),
-		DatabaseURL:    getEnv("DATABASE_URL", ""),
-		JWTSecret:      getEnv("JWT_SECRET", "default-secret"),
-		JWTAccessTTL:   accessTTL,
-		JWTRefreshTTL:  refreshTTL,
-		RedisURL:       getEnv("REDIS_URL", "redis://localhost:6379"),
-		MinIOEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
-		MinIOAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
-		MinIOSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
-		MinIOBucket:    getEnv("MINIO_BUCKET", "pir-bukti"),
-		MinIOUseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
-		CORSOrigin:     getEnv("CORS_ORIGIN", "http://localhost:3000"),
+		AppEnv:        getEnv("APP_ENV", "development"),
+		AppPort:       getEnv("APP_PORT", "8080"),
+		DatabaseURL:   getEnv("DATABASE_URL", ""),
+		JWTSecret:     getEnv("JWT_SECRET", "default-secret"),
+		JWTAccessTTL:  accessTTL,
+		JWTRefreshTTL: refreshTTL,
+		CORSOrigin:    getEnv("CORS_ORIGIN", "http://localhost:3000"),
 	}
 }
 

@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/go-chi/chi/v5"
 
@@ -29,6 +30,9 @@ func (h *PengaturanHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 func (h *PengaturanHandler) Update(w http.ResponseWriter, r *http.Request) {
 	unit := chi.URLParam(r, "unit")
+	if unescaped, err := url.PathUnescape(unit); err == nil && unescaped != "" {
+		unit = unescaped
+	}
 
 	var body struct {
 		BatasWaktuBulan int `json:"batas_waktu_bulan"`
