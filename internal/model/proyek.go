@@ -18,6 +18,23 @@ type Proyek struct {
 	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
+type TimelineStage struct {
+	Key       string `json:"key"`
+	Nama      string `json:"nama"`
+	Deskripsi string `json:"deskripsi"`
+	Status    string `json:"status"` // 'selesai', 'pending', 'terlambat', 'belum_dimulai'
+	Tanggal   string `json:"tanggal,omitempty"`
+}
+
+type ProyekDetail struct {
+	Proyek
+	BatasWaktuBulan   int             `json:"batas_waktu_bulan"`
+	TanggalJatuhTempo string          `json:"tanggal_jatuh_tempo"`
+	Timeline          []TimelineStage `json:"timeline"`
+	PIRFormID         *string         `json:"pir_form_id,omitempty"`
+	LaporanID         *string         `json:"laporan_id,omitempty"`
+}
+
 type StatistikPIR struct {
 	Selesai         int `json:"selesai"`
 	Pending         int `json:"pending"`

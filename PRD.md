@@ -3,7 +3,7 @@
 ## PIR Monitoring — PT PUSRI Palembang
 
 **Versi:** 1.1  
-**Tanggal Terakhir Diperbarui:** 16 Okt 2026
+**Tanggal Terakhir Diperbarui:** 19 Okt 2026
 **Pemilik Produk:** Divisi Teknologi Informasi PT PUSRI  
 **Stakeholder:** Budi Santoso (Staff Divisi TI)  
 **Status:** In Progress (Aktif Dikembangkan)
@@ -373,16 +373,16 @@ Login → Dashboard
 
 | Milestone | Deskripsi                                                                  |  Backend   |  Frontend  | Status Keseluruhan |
 | --------- | -------------------------------------------------------------------------- | :--------: | :--------: | :----------------: |
-| **M1**    | Setup Lingkungan (Go, Chi, Docker SQL Server)                              |  ✅ Done   |     -      |    **✅ Done**     |
+| **M1**    | Setup Lingkungan (Go, Chi, Docker SQL Server)                |  ✅ Done   |     -      |    **✅ Done**     |
 | **M2**    | Autentikasi (Login NIP + Password, JWT, Middleware)                        |  ✅ Done   |  ✅ Done   |    **✅ Done**     |
 | **M3**    | Layout Dashboard & Desain Sistem (Sidebar gradien PUSRI, Header responsif) |     -      |  ✅ Done   |    **✅ Done**     |
 | **M3.5**  | Konfigurasi Batas Waktu PIR per Unit Kerja                                 |  ✅ Done   |  ✅ Done   |    **✅ Done**     |
 | **M4**    | Dashboard Terintegrasi (4 StatCard, Donut Chart, Tabel Proyek)             |  ✅ Done   |  ✅ Done   |    **✅ Done**     |
-| **M4.1**  | Navigasi Aksi Dashboard & Detail Proyek (Timeline 5 Tahap + KPI)           | ⏳ Pending | ⏳ Pending |   **⏳ Pending**   |
-| **M5**    | PIR Form Step 1: Pembuatan Form (Metode, Vendor, Tujuan)                   | ✅ Done | ✅ Done | **✅ Done** |
+| **M4.1**  | Navigasi Aksi Dashboard & Detail Proyek (Timeline 5 Tahap + KPI)           | ✅ Done | ✅ Done | **✅ Done** |
+| **M5**    | PIR Form Step 1: Pembuatan Form (Metode, Vendor, Tujuan)                   |  ✅ Done   |  ✅ Done   |    **✅ Done**     |
 | **M6**    | PIR Form Step 2: Form Survey (Pertanyaan Dinamis & Skala Kepuasan)         | ⏳ Pending | ⏳ Pending |   **⏳ Pending**   |
 | **M7**    | PIR Form Step 3: Laporan PIR & Ekspor PDF Format PUSRI                     | ⏳ Pending | ⏳ Pending |   **⏳ Pending**   |
-| **M8**    | PIR Form Step 4: Tindak Lanjut & Upload Bukti (SQL Server / Server)        | ⏳ Pending | ⏳ Pending |   **⏳ Pending**   |
+| **M8**    | PIR Form Step 4: Tindak Lanjut & Upload Bukti                              | ⏳ Pending | ⏳ Pending |   **⏳ Pending**   |
 | **M9**    | Otomasi Notifikasi & Scheduler Cron (H-7 dan H+batas_waktu)                | ⏳ Pending | ⏳ Pending |   **⏳ Pending**   |
 | **M10**   | Testing End-to-End, Security Hardening, & Deployment VPS                   | ⏳ Pending | ⏳ Pending |   **⏳ Pending**   |
 
@@ -408,8 +408,8 @@ Login → Dashboard
 - [x] Frontend: Tabel Daftar Proyek dengan badge status warna
 - [x] Frontend: Donut Chart status PIR (Recharts)
 - [x] Frontend: Routing tombol "Buat PIR" -> Form Step 1
-- [ ] Frontend: Routing tombol "Detail" -> Halaman Detail Proyek
-- [ ] Frontend: Routing tombol "Lihat Notifikasi" -> Halaman Notifikasi
+- [x] Frontend: Routing tombol "Detail" -> Halaman Detail Proyek
+- [x] Frontend: Routing tombol "Lihat Notifikasi" -> Halaman Notifikasi
 
 #### 3. Pengaturan Batas Waktu per Unit Kerja
 
@@ -420,10 +420,10 @@ Login → Dashboard
 
 #### 4. Detail Proyek & Visual Timeline
 
-- [ ] Backend: `GET /v1/proyek/{id}` (Detail lengkap + status 5 tahap)
-- [ ] Frontend: Halaman `/proyek/[id]`
-- [ ] Frontend: Visual Timeline 5 tahap: Go Live → Notifikasi → Survey → Laporan → Tindak Lanjut (Hijau, Kuning, Merah, Abu)
-- [ ] Frontend: 3 KPI Card (Kepuasan, Kesesuaian Tujuan, Progress Tindak Lanjut)
+- [x] Backend: `GET /v1/proyek/{id}` (Detail lengkap + status 5 tahap)
+- [x] Frontend: Halaman `/proyek/[id]`
+- [x] Frontend: Visual Timeline 5 tahap: Go Live → Notifikasi → PIR Review → Laporan → Tindak Lanjut (Hijau, Kuning, Merah, Abu)
+- [x] Frontend: 3 KPI Card (Kepuasan, Kesesuaian Tujuan, Progress Tindak Lanjut)
 
 #### 5. PIR Form Step 1: Pembuatan PIR
 
@@ -455,7 +455,7 @@ Login → Dashboard
 - [x] Database: Tabel `tindak_lanjut` & `tindak_lanjut_bukti`
 - [ ] Backend: `GET /v1/tindak-lanjut` & `POST /v1/tindak-lanjut`
 - [ ] Backend: `PUT /v1/tindak-lanjut/{id}` (Update status Open/In Progress/Done & PIC)
-- [ ] Backend: `POST /v1/tindak-lanjut/{id}/bukti` (Upload file bukti max 10MB)
+- [ ] Backend: `POST /v1/tindak-lanjut/{id}/bukti` (Upload file ke MinIO, max 10MB)
 - [ ] Frontend: Halaman `/tindak-lanjut` (Daftar lintas proyek)
 - [ ] Frontend: Form tambah temuan, penugasan PIC, datepicker target selesai, dan dropzone upload bukti
 
@@ -464,21 +464,22 @@ Login → Dashboard
 - [x] Database: Tabel `notifikasi`
 - [ ] Backend: Worker scheduler di `internal/scheduler` (Evaluasi harian selisih tanggal go live vs batas waktu unit kerja)
 - [ ] Backend: `GET /v1/notifikasi`, `PUT /v1/notifikasi/{id}/read`, `PUT /v1/notifikasi/read-all`
-- [ ] Frontend: Halaman `/notifikasi` (Filter Terlambat & Segera H-7)
-- [ ] Frontend: Badge count notifikasi di Header dan Sidebar
+- [x] Frontend: Halaman `/notifikasi` (Filter Terlambat & Segera H-7)
+- [x] Frontend: Badge count notifikasi di Header dan Sidebar
 
 ---
 
 ### 14.3 Log Riwayat Pengerjaan (Changelog)
 
-| Tanggal         | Area                               | Deskripsi Perubahan                                                                                                                                       |   Status   |
-| --------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------: |
-| **16 Okt 2026** | Backend, DB & Infra                | Refactoring arsitektur database: menghapus dependensi Redis & MinIO, konfigurasi murni hanya menggunakan SQL Server                                       | ✅ Selesai |
-| **16 Okt 2026** | Full Stack (DB, Backend, Frontend) | M3.5 UI: Halaman Pengaturan batas waktu unit kerja selesai. M5: API Step 1 PIR (`POST/GET/PUT /v1/pir`) dan UI multi-step wizard Step 1 PIR (`/pir-form`) | ✅ Selesai |
-| **16 Okt 2026** | Dokumentasi & Tracking             | Pembaruan PRD v1.1, pembagian milestone detail, dan penyusunan checklist fitur otomatis                                                                   | ✅ Selesai |
-| **09 Okt 2026** | Frontend                           | Integrasi dashboard dengan backend (StatCard, Donut Chart, Project Table)                                                                                 | ✅ Selesai |
-| **08 Okt 2026** | Frontend & Backend                 | Pembuatan layout sidebar gradient PUSRI, header responsif, dan endpoint pengaturan unit kerja                                                             | ✅ Selesai |
-| **07 Okt 2026** | Backend & Database                 | Setup Chi router, koneksi SQL Server Docker, migrasi 11 tabel, dan Auth JWT                                                                               | ✅ Selesai |
+| Tanggal         | Area                               | Deskripsi Perubahan                                                                                                                                                                         |   Status   |
+| --------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------: |
+| **19 Okt 2026** | Frontend                           | Integrasi `useNotificationStore`: Navigasi klik Bell Header ke `/notifikasi`, badge dinamis Header & Sidebar sesuai notifikasi belum dibaca, tombol Tandai Dibaca & Tandai Semua Dibaca   | ✅ Selesai |
+| **19 Okt 2026** | Full Stack (Backend & Frontend) | M4.1: API `GET /v1/proyek/{id}` dengan status 5 tahap & KPI, halaman `/proyek/[id]`, komponen `ProjectTimeline` (5 tahap + legend), `ProjectKPICards`, halaman `/notifikasi`, dan routing aksi dashboard | ✅ Selesai |
+| **16 Okt 2026** | Full Stack (DB, Backend, Frontend) | M3.5 UI: Halaman Pengaturan batas waktu unit kerja selesai. M5: API Step 1 PIR (`POST/GET/PUT /v1/pir`), integrasi Redis & MinIO storage, dan UI multi-step wizard Step 1 PIR (`/pir-form`) | ✅ Selesai |
+| **16 Okt 2026** | Dokumentasi & Tracking             | Pembaruan PRD v1.1, pembagian milestone detail, dan penyusunan checklist fitur otomatis                                                                                                     | ✅ Selesai |
+| **09 Okt 2026** | Frontend                           | Integrasi dashboard dengan backend (StatCard, Donut Chart, Project Table)                                                                                                                   | ✅ Selesai |
+| **08 Okt 2026** | Frontend & Backend                 | Pembuatan layout sidebar gradient PUSRI, header responsif, dan endpoint pengaturan unit kerja                                                                                               | ✅ Selesai |
+| **07 Okt 2026** | Backend & Database                 | Setup Chi router, koneksi SQL Server Docker, migrasi 11 tabel, dan Auth JWT                                                                                                                 | ✅ Selesai |
 
 ---
 

@@ -24,6 +24,10 @@ func (s *ProyekService) GetByID(ctx context.Context, id string) (*model.Proyek, 
 	return s.Repo.GetByID(ctx, id)
 }
 
+func (s *ProyekService) GetDetailByID(ctx context.Context, id string) (*model.ProyekDetail, error) {
+	return s.Repo.GetDetailByID(ctx, id)
+}
+
 func (s *ProyekService) GetStatistik(ctx context.Context) (*model.StatistikPIR, error) {
 	return s.Repo.GetStatistik(ctx)
 }

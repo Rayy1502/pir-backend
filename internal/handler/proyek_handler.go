@@ -36,7 +36,7 @@ func (h *ProyekHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 func (h *ProyekHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
-	p, err := h.Service.GetByID(r.Context(), id)
+	p, err := h.Service.GetDetailByID(r.Context(), id)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "DB_ERROR", err.Error(), nil)
 		return
