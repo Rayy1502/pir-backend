@@ -23,8 +23,14 @@ func Load() *Config {
 		log.Println("No .env file found, using system env")
 	}
 
-	accessTTL, _ := time.ParseDuration(getEnv("JWT_ACCESS_TTL", "15m"))
-	refreshTTL, _ := time.ParseDuration(getEnv("JWT_REFRESH_TTL", "168h"))
+	accessTTL, err := time.ParseDuration(getEnv("JWT_ACCESS_TTL", "24h"))
+	if err != nil || accessTTL <= 0 {
+		accessTTL = 24 * time.Hour
+	}
+	refreshTTL, err := time.ParseDuration(getEnv("JWT_REFRESH_TTL", "168h"))
+	if err != nil || refreshTTL <= 0 {
+		refreshTTL = 7 * 24 * time.Hour
+	}
 
 	return &Config{
 		AppEnv:        getEnv("APP_ENV", "development"),

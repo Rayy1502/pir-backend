@@ -3,7 +3,7 @@
 ## PIR Monitoring — PT PUSRI Palembang
 
 **Versi:** 1.1  
-**Tanggal Terakhir Diperbarui:** 19 Okt 2026
+**Tanggal Terakhir Diperbarui:** 20 Okt 2026
 **Pemilik Produk:** Divisi Teknologi Informasi PT PUSRI  
 **Stakeholder:** Budi Santoso (Staff Divisi TI)  
 **Status:** In Progress (Aktif Dikembangkan)
@@ -473,6 +473,7 @@ Login → Dashboard
 
 | Tanggal         | Area                               | Deskripsi Perubahan                                                                                                                                                                         |   Status   |
 | --------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------: |
+| **20 Okt 2026** | Full Stack (Backend & Frontend)    | Perbaikan penanganan token kadaluarsa (401 auto-clean localStorage & redirect login, banner sesi berakhir) serta konfigurasi TTL JWT access token menjadi 24 jam sesuai spesifikasi PRD    | ✅ Selesai |
 | **19 Okt 2026** | Frontend                           | Integrasi `useNotificationStore`: Navigasi klik Bell Header ke `/notifikasi`, badge dinamis Header & Sidebar sesuai notifikasi belum dibaca, tombol Tandai Dibaca & Tandai Semua Dibaca   | ✅ Selesai |
 | **19 Okt 2026** | Full Stack (Backend & Frontend) | M4.1: API `GET /v1/proyek/{id}` dengan status 5 tahap & KPI, halaman `/proyek/[id]`, komponen `ProjectTimeline` (5 tahap + legend), `ProjectKPICards`, halaman `/notifikasi`, dan routing aksi dashboard | ✅ Selesai |
 | **16 Okt 2026** | Full Stack (DB, Backend, Frontend) | M3.5 UI: Halaman Pengaturan batas waktu unit kerja selesai. M5: API Step 1 PIR (`POST/GET/PUT /v1/pir`), integrasi Redis & MinIO storage, dan UI multi-step wizard Step 1 PIR (`/pir-form`) | ✅ Selesai |

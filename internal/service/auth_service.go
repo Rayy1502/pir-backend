@@ -43,12 +43,20 @@ func (s *AuthService) Login(ctx context.Context, nip, password string) (*model.U
 		return nil, "", "", ErrUserInactive
 	}
 
-	accessToken, err := jwt.GenerateToken(s.Cfg.JWTSecret, user.ID, user.NIP, user.Role, 15*time.Minute)
+	accessTTL := s.Cfg.JWTAccessTTL
+	if accessTTL <= 0 {
+		accessTTL = 24 * time.Hour
+	}
+	accessToken, err := jwt.GenerateToken(s.Cfg.JWTSecret, user.ID, user.NIP, user.Role, accessTTL)
 	if err != nil {
 		return nil, "", "", err
 	}
 
-	refreshToken, err := jwt.GenerateToken(s.Cfg.JWTSecret, user.ID, user.NIP, user.Role, 7*24*time.Hour)
+	refreshTTL := s.Cfg.JWTRefreshTTL
+	if refreshTTL <= 0 {
+		refreshTTL = 7 * 24 * time.Hour
+	}
+	refreshToken, err := jwt.GenerateToken(s.Cfg.JWTSecret, user.ID, user.NIP, user.Role, refreshTTL)
 	if err != nil {
 		return nil, "", "", err
 	}
