@@ -29,7 +29,7 @@ func (r *PengaturanRepository) GetAll(ctx context.Context) ([]model.PengaturanUn
 	}
 	defer rows.Close()
 
-	var list []model.PengaturanUnitKerja
+	list := make([]model.PengaturanUnitKerja, 0)
 	for rows.Next() {
 		var p model.PengaturanUnitKerja
 		var uid mssql.UniqueIdentifier

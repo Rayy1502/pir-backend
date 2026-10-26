@@ -13,13 +13,19 @@ type PIRForm struct {
 	DaftarPertanyaan    string     `json:"daftar_pertanyaan"`
 	KesimpulanWawancara string     `json:"kesimpulan_wawancara"`
 	Responden           string     `json:"responden"`
-	Status              string     `json:"status"` // 'draft', 'submitted', 'in_progress', 'selesai'
+	Status              string     `json:"status"` // 'draft', 'submitted', 'approved', 'in_progress', 'selesai'
+	ApprovedBy          *string    `json:"approved_by,omitempty"`
+	ApprovedAt          *time.Time `json:"approved_at,omitempty"`
 	CreatedBy           *string    `json:"created_by,omitempty"`
 	CreatedAt           time.Time  `json:"created_at"`
 	UpdatedAt           time.Time  `json:"updated_at"`
 	
 	// Joined Proyek detail
 	Proyek              *Proyek    `json:"proyek,omitempty"`
+}
+
+type ApprovePIRRequest struct {
+	ApprovedBy string `json:"approved_by"`
 }
 
 type CreatePIRRequest struct {

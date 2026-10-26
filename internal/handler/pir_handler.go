@@ -81,3 +81,27 @@ func (h *PIRHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	response.Success(w, map[string]string{"message": "Form PIR berhasil diperbarui"}, nil)
 }
+
+func (h *PIRHandler) Approve(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "BAD_REQUEST", "ID PIR form dibutuhkan", nil)
+		return
+	}
+
+	var req model.ApprovePIRRequest
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.ApprovedBy == "" {
+		req.ApprovedBy = "VP Teknologi Informasi"
+	}
+
+	if err := h.Service.Approve(r.Context(), id, req.ApprovedBy); err != nil {
+		response.Error(w, http.StatusInternalServerError, "DB_ERROR", err.Error(), nil)
+		return
+	}
+
+	response.Success(w, map[string]string{
+		"message":     "Data evaluasi PIR berhasil disetujui (ACC)",
+		"approved_by": req.ApprovedBy,
+	}, nil)
+}

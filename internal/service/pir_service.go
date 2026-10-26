@@ -72,3 +72,10 @@ func (s *PIRService) Update(ctx context.Context, id string, req *model.UpdatePIR
 	}
 	return s.Repo.Update(ctx, id, req)
 }
+
+func (s *PIRService) Approve(ctx context.Context, id, approvedBy string) error {
+	if id == "" {
+		return errors.New("id tidak boleh kosong")
+	}
+	return s.Repo.Approve(ctx, id, approvedBy)
+}

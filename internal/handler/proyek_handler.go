@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -47,3 +48,38 @@ func (h *ProyekHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 	response.Success(w, p, nil)
 }
+
+func (h *ProyekHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req dto.CreateProyekRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "INVALID_BODY", "Request body tidak valid", nil)
+		return
+	}
+
+	if req.NamaKegiatan == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "Nama kegiatan wajib diisi", nil)
+		return
+	}
+	if req.Kategori == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "Kategori proyek wajib diisi", nil)
+		return
+	}
+	if req.UnitKerja == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "Unit kerja pemilik wajib diisi", nil)
+		return
+	}
+	if req.TanggalGoLive == "" {
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "Tanggal go live wajib diisi", nil)
+		return
+	}
+
+	p, err := h.Service.Create(r.Context(), req)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "DB_ERROR", err.Error(), nil)
+		return
+	}
+
+	response.Created(w, p)
+}
+
+

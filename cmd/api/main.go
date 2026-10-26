@@ -40,12 +40,18 @@ func main() {
 	pengaturanRepo := repository.NewPengaturanRepository(database)
 	proyekRepo := repository.NewProyekRepository(database)
 	pirRepo := repository.NewPIRRepository(database)
+	surveyRepo := repository.NewSurveyRepository(database)
+	laporanRepo := repository.NewLaporanRepository(database)
+	tindakLanjutRepo := repository.NewTindakLanjutRepository(database)
 
 	// 4. Init services
 	authService := service.NewAuthService(cfg, userRepo)
 	pengaturanService := service.NewPengaturanService(pengaturanRepo)
 	proyekService := service.NewProyekService(proyekRepo)
 	pirService := service.NewPIRService(pirRepo)
+	surveyService := service.NewSurveyService(surveyRepo, pirRepo)
+	laporanService := service.NewLaporanService(laporanRepo, proyekRepo)
+	tindakLanjutService := service.NewTindakLanjutService(tindakLanjutRepo)
 
 	// 5. Init handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -53,8 +59,11 @@ func main() {
 	proyekHandler := handler.NewProyekHandler(proyekService)
 	dashboardHandler := handler.NewDashboardHandler(proyekService)
 	pirHandler := handler.NewPIRHandler(pirService)
+	surveyHandler := handler.NewSurveyHandler(surveyService)
+	laporanHandler := handler.NewLaporanHandler(laporanService, "./uploads")
+	tindakLanjutHandler := handler.NewTindakLanjutHandler(tindakLanjutService, "./uploads")
 
-	// 6. Setup router  ← INI YANG HILANG DI FILE KAMU
+	// 6. Setup router
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
@@ -62,15 +71,26 @@ func main() {
 	r.Use(chimw.Recoverer)
 	r.Use(chimw.Timeout(60 * time.Second))
 
-	// 7. CORS
+	// 7. CORS (must be before any routes)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{cfg.CORSOrigin},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-		ExposedHeaders:   []string{"Link"},
+		ExposedHeaders:   []string{"Link", "Content-Disposition"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+
+	// Static file serving for uploads
+	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+
+	// Fallback JSON for 404 & 405
+	r.NotFound(func(w http.ResponseWriter, req *http.Request) {
+		response.Error(w, http.StatusNotFound, "NOT_FOUND", "Endpoint tidak ditemukan: "+req.Method+" "+req.URL.Path, nil)
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, req *http.Request) {
+		response.Error(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Metode tidak diizinkan: "+req.Method+" "+req.URL.Path, nil)
+	})
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		response.Success(w, map[string]string{
@@ -110,17 +130,38 @@ func main() {
 
 			// Proyek
 			r.Get("/proyek", proyekHandler.GetAll)
+			r.Post("/proyek", proyekHandler.Create)
 			r.Get("/proyek/{id}", proyekHandler.GetByID)
 
 			// Dashboard
 			r.Get("/dashboard/stats", dashboardHandler.Stats)
 			r.Get("/dashboard/statistik-pir", dashboardHandler.StatistikPIR)
 
-			// PIR Form
+			// PIR Form Step 1
 			r.Post("/pir", pirHandler.Create)
 			r.Get("/pir", pirHandler.GetByProyekOrList)
 			r.Get("/pir/{id}", pirHandler.GetByID)
 			r.Put("/pir/{id}", pirHandler.Update)
+			r.Put("/pir/{id}/approve", pirHandler.Approve)
+
+			// Survey Step 2
+			r.Post("/pir/{id}/survey", surveyHandler.Save)
+			r.Get("/pir/{id}/survey", surveyHandler.Get)
+
+			// Laporan Step 3
+			r.Post("/laporan", laporanHandler.Create)
+			r.Get("/laporan", laporanHandler.GetAll)
+			r.Get("/laporan/{id}", laporanHandler.GetByID)
+			r.Get("/laporan/{id}/pdf", laporanHandler.ExportPDF)
+			r.Get("/laporan/proyek/{proyekId}", laporanHandler.GetByProyekID)
+			r.Post("/laporan/{id}/upload-ttd", laporanHandler.UploadSignedPDF)
+
+			// Tindak Lanjut Step 4
+			r.Get("/tindak-lanjut", tindakLanjutHandler.GetAll)
+			r.Get("/tindak-lanjut/{id}", tindakLanjutHandler.GetByID)
+			r.Post("/tindak-lanjut", tindakLanjutHandler.Create)
+			r.Put("/tindak-lanjut/{id}", tindakLanjutHandler.Update)
+			r.Post("/tindak-lanjut/{id}/bukti", tindakLanjutHandler.UploadBukti)
 		})
 	})
 

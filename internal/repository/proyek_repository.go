@@ -21,7 +21,7 @@ func NewProyekRepository(db *sql.DB) *ProyekRepository {
 }
 
 func scanProyek(rows *sql.Rows) ([]model.Proyek, error) {
-	var list []model.Proyek
+	list := make([]model.Proyek, 0)
 	for rows.Next() {
 		var p model.Proyek
 		var uid mssql.UniqueIdentifier
@@ -155,38 +155,58 @@ func (r *ProyekRepository) GetDetailByID(ctx context.Context, id string) (*model
 
 	// Cek pir_form
 	var pirFormID mssql.UniqueIdentifier
-	var pirStatus, pirMetode sql.NullString
-	var pirCreatedAt sql.NullTime
+	var pirStatus, pirMetode, pirApprovedBy sql.NullString
+	var pirCreatedAt, pirApprovedAt sql.NullTime
 	errPIR := r.DB.QueryRowContext(ctx, `
-		SELECT TOP 1 id, status, metode, created_at
+		SELECT TOP 1 id, status, metode, created_at, approved_by, approved_at
 		FROM pir_form
 		WHERE proyek_id = @proyek_id
 		ORDER BY created_at DESC
-	`, sql.Named("proyek_id", id)).Scan(&pirFormID, &pirStatus, &pirMetode, &pirCreatedAt)
+	`, sql.Named("proyek_id", id)).Scan(&pirFormID, &pirStatus, &pirMetode, &pirCreatedAt, &pirApprovedBy, &pirApprovedAt)
 
 	hasPIRForm := (errPIR == nil)
 	if hasPIRForm {
 		pirStr := pirFormID.String()
 		detail.PIRFormID = &pirStr
+		if pirStatus.Valid {
+			st := pirStatus.String
+			detail.PIRFormStatus = &st
+		}
+		if pirApprovedBy.Valid && pirApprovedBy.String != "" {
+			ap := pirApprovedBy.String
+			detail.ApprovedBy = &ap
+		}
+		if pirApprovedAt.Valid {
+			at := pirApprovedAt.Time.Format("2006-01-02 15:04")
+			detail.ApprovedAt = &at
+		}
 	}
 
 	// Cek laporan_pir
 	var lapID mssql.UniqueIdentifier
-	var noPIR sql.NullString
+	var noPIR, fileTTDURL, statusLaporan sql.NullString
 	var kepuasan sql.NullFloat64
 	var kesesuaian sql.NullInt32
-	var tglLaporan sql.NullTime
+	var tglLaporan, signedAt sql.NullTime
 	errLap := r.DB.QueryRowContext(ctx, `
-		SELECT TOP 1 id, nomor_pir, kepuasan, kesesuaian_tujuan, tanggal_laporan
+		SELECT TOP 1 id, nomor_pir, kepuasan, kesesuaian_tujuan, tanggal_laporan, file_ttd_url, status_laporan, signed_at
 		FROM laporan_pir
 		WHERE proyek_id = @proyek_id
 		ORDER BY created_at DESC
-	`, sql.Named("proyek_id", id)).Scan(&lapID, &noPIR, &kepuasan, &kesesuaian, &tglLaporan)
+	`, sql.Named("proyek_id", id)).Scan(&lapID, &noPIR, &kepuasan, &kesesuaian, &tglLaporan, &fileTTDURL, &statusLaporan, &signedAt)
 
 	hasLaporan := (errLap == nil)
 	if hasLaporan {
 		lapStr := lapID.String()
 		detail.LaporanID = &lapStr
+		if fileTTDURL.Valid && fileTTDURL.String != "" {
+			url := fileTTDURL.String
+			detail.FileTTDURL = &url
+		}
+		if statusLaporan.Valid {
+			sl := statusLaporan.String
+			detail.StatusLaporan = &sl
+		}
 	}
 
 	// Cek tindak lanjut
@@ -223,39 +243,44 @@ func (r *ProyekRepository) GetDetailByID(ctx context.Context, id string) (*model
 		detail.TindakLanjutDone = &dn
 	}
 
-	// Visual Timeline 5 Tahap
+	// Visual Timeline 5 Tahap Sesuai Alur Baru
 	now := time.Now()
+	tglPercobaanSelesai := p.TanggalGoLive.AddDate(0, 2, 0)
+	tglBatasAkhir := tglPercobaanSelesai.AddDate(0, 1, 0)
 
 	// 1. Go Live
 	t1 := model.TimelineStage{
 		Key:       "go_live",
 		Nama:      "Go Live",
-		Deskripsi: fmt.Sprintf("Sistem resmi dirilis pada %s", p.TanggalGoLive.Format("02 Jan 2006")),
+		Deskripsi: fmt.Sprintf("Sistem resmi rilis pada %s (Masa uji coba pengguna: 2 bulan)", p.TanggalGoLive.Format("02 Jan 2006")),
 		Status:    "selesai",
 		Tanggal:   p.TanggalGoLive.Format("2006-01-02"),
 	}
 
-	// 2. Notifikasi PIR
+	// 2. Notifikasi PIR (Masa Percobaan 2 Bulan & Peringatan 1 Bulan)
 	var t2 model.TimelineStage
 	t2.Key = "notifikasi"
 	t2.Nama = "Notifikasi PIR"
-	t2.Tanggal = detail.TanggalJatuhTempo
+	t2.Tanggal = tglPercobaanSelesai.Format("2006-01-02")
 
 	if p.StatusPIR == "selesai" {
 		t2.Status = "selesai"
-		t2.Deskripsi = "Notifikasi telah diproses & PIR selesai tepat waktu"
-	} else if now.After(tglJatuhTempo) {
-		t2.Status = "terlambat"
-		t2.Deskripsi = fmt.Sprintf("Melebihi batas waktu evaluasi (%d bulan sejak go-live)", detail.BatasWaktuBulan)
-	} else if now.After(tglJatuhTempo.AddDate(0, 0, -7)) {
-		t2.Status = "pending"
-		t2.Deskripsi = fmt.Sprintf("Mendekati batas waktu PIR (Jatuh tempo: %s)", tglJatuhTempo.Format("02 Jan 2006"))
-	} else {
+		t2.Deskripsi = "Notifikasi diproses & siklus PIR telah selesai disahkan"
+	} else if now.Before(tglPercobaanSelesai) {
 		t2.Status = "belum_dimulai"
-		t2.Deskripsi = fmt.Sprintf("Batas waktu PIR jatuh pada %s", tglJatuhTempo.Format("02 Jan 2006"))
+		t2.Deskripsi = fmt.Sprintf("Masa uji coba pengguna sedang berjalan (selesai: %s)", tglPercobaanSelesai.Format("02 Jan 2006"))
+	} else if now.After(tglBatasAkhir) {
+		t2.Status = "terlambat"
+		t2.Deskripsi = fmt.Sprintf("Melebihi batas waktu evaluasi (>1 bulan pasca masa uji coba sejak %s)", tglPercobaanSelesai.Format("02 Jan 2006"))
+	} else if now.After(tglBatasAkhir.AddDate(0, 0, -7)) {
+		t2.Status = "pending"
+		t2.Deskripsi = fmt.Sprintf("Peringatan eskalasi: Hampir 1 bulan pasca uji coba belum buat PIR (Batas: %s)", tglBatasAkhir.Format("02 Jan 2006"))
+	} else {
+		t2.Status = "pending"
+		t2.Deskripsi = fmt.Sprintf("Masa uji coba 2 bulan selesai pada %s. Waktu pelaksanaan PIR tiba", tglPercobaanSelesai.Format("02 Jan 2006"))
 	}
 
-	// 3. PIR Review
+	// 3. PIR Review (Form Pengambilan Data + Tombol ACC)
 	var t3 model.TimelineStage
 	t3.Key = "pir_review"
 	t3.Nama = "PIR Review"
@@ -265,45 +290,53 @@ func (r *ProyekRepository) GetDetailByID(ctx context.Context, id string) (*model
 		if pirCreatedAt.Valid {
 			t3.Tanggal = pirCreatedAt.Time.Format("2006-01-02")
 		}
-		if st == "submitted" || st == "selesai" || p.StatusPIR == "selesai" {
+		if st == "approved" || p.StatusPIR == "selesai" {
 			t3.Status = "selesai"
-			metode := pirMetode.String
-			if metode == "" {
-				metode = "Observasi"
+			approver := "VP Teknologi Informasi"
+			if detail.ApprovedBy != nil && *detail.ApprovedBy != "" {
+				approver = *detail.ApprovedBy
 			}
-			t3.Deskripsi = fmt.Sprintf("Form PIR telah diisi & disubmit (Metode: %s)", strings.Title(metode))
+			t3.Deskripsi = fmt.Sprintf("Data evaluasi PIR telah di-ACC & disetujui oleh %s", approver)
 		} else {
 			t3.Status = "pending"
-			t3.Deskripsi = "Form evaluasi PIR tersimpan sebagai draft"
+			t3.Deskripsi = "Form & survey PIR telah diisi, menunggu persetujuan / ACC penilai"
 		}
 	} else if p.StatusPIR == "selesai" {
 		t3.Status = "selesai"
-		t3.Deskripsi = "Evaluasi dan survey PIR telah selesai dilaksanakan"
-	} else if now.After(tglJatuhTempo) {
+		t3.Deskripsi = "Evaluasi dan survey PIR telah selesai disetujui"
+	} else if now.After(tglBatasAkhir) {
 		t3.Status = "terlambat"
-		t3.Deskripsi = "Evaluasi PIR belum dimulai dan telah melewati batas waktu"
+		t3.Deskripsi = "Pengambilan data PIR belum dilakukan dan telah melewati batas waktu"
+	} else if now.After(tglPercobaanSelesai) {
+		t3.Status = "pending"
+		t3.Deskripsi = "Waktu evaluasi PIR tiba, form belum dibuat"
 	} else {
 		t3.Status = "belum_dimulai"
-		t3.Deskripsi = "Menunggu inisiasi pengisian form PIR"
+		t3.Deskripsi = "Menunggu masa uji coba 2 bulan selesai"
 	}
 
-	// 4. Laporan PIR
+	// 4. Laporan PIR (Format PDF Resmi + Upload Bukti TTD)
 	var t4 model.TimelineStage
 	t4.Key = "laporan"
 	t4.Nama = "Laporan PIR"
 
 	if hasLaporan {
-		t4.Status = "selesai"
 		if tglLaporan.Valid {
 			t4.Tanggal = tglLaporan.Time.Format("2006-01-02")
 		}
-		t4.Deskripsi = fmt.Sprintf("Laporan resmi disetujui (%s)", noPIR.String)
+		if detail.FileTTDURL != nil && *detail.FileTTDURL != "" {
+			t4.Status = "selesai"
+			t4.Deskripsi = fmt.Sprintf("Laporan resmi disetujui & bukti TTD telah diunggah (%s)", noPIR.String)
+		} else {
+			t4.Status = "pending"
+			t4.Deskripsi = fmt.Sprintf("Draft laporan diterbitkan (%s), menunggu tanda tangan & upload bukti PDF", noPIR.String)
+		}
 	} else if p.StatusPIR == "selesai" {
 		t4.Status = "selesai"
-		t4.Deskripsi = "Laporan resmi PIR telah diterbitkan & disetujui"
-	} else if hasPIRForm && pirStatus.String == "submitted" {
+		t4.Deskripsi = "Laporan resmi PIR telah diterbitkan & disahkan"
+	} else if hasPIRForm && pirStatus.String == "approved" {
 		t4.Status = "pending"
-		t4.Deskripsi = "Menunggu penyusunan dan pengesahan laporan PIR"
+		t4.Deskripsi = "Data PIR telah di-ACC, siap menyusun laporan resmi"
 	} else {
 		t4.Status = "belum_dimulai"
 		t4.Deskripsi = "Laporan evaluasi belum disusun"
@@ -371,3 +404,72 @@ func (r *ProyekRepository) GetStatistik(ctx context.Context) (*model.StatistikPI
 	}
 	return stat, nil
 }
+
+func (r *ProyekRepository) Create(ctx context.Context, req dto.CreateProyekRequest) (*model.Proyek, error) {
+	status := req.StatusPIR
+	if status == "" {
+		tglGoLive, err := time.Parse("2006-01-02", req.TanggalGoLive)
+		if err != nil {
+			status = "pending"
+		} else {
+			batasBulan := 2
+			_ = r.DB.QueryRowContext(ctx, "SELECT batas_waktu_bulan FROM pengaturan WHERE unit = @unit", sql.Named("unit", req.UnitKerja)).Scan(&batasBulan)
+			if batasBulan <= 0 {
+				batasBulan = 2
+			}
+			jatuhTempo := tglGoLive.AddDate(0, batasBulan, 0)
+			now := time.Now()
+			if now.After(jatuhTempo) {
+				status = "terlambat"
+			} else if now.After(jatuhTempo.AddDate(0, 0, -7)) {
+				status = "pending"
+			} else {
+				status = "belum-jatuh-tempo"
+			}
+		}
+	}
+
+	query := `
+		INSERT INTO proyek (nama_kegiatan, kategori, unit_kerja, vendor, tanggal_go_live, status_pir)
+		OUTPUT INSERTED.id, INSERTED.created_at, INSERTED.updated_at
+		VALUES (@nama, @kategori, @unit, @vendor, @golive, @status)
+	`
+	var id mssql.UniqueIdentifier
+	var createdAt, updatedAt time.Time
+
+	err := r.DB.QueryRowContext(ctx, query,
+		sql.Named("nama", req.NamaKegiatan),
+		sql.Named("kategori", req.Kategori),
+		sql.Named("unit", req.UnitKerja),
+		sql.Named("vendor", req.Vendor),
+		sql.Named("golive", req.TanggalGoLive),
+		sql.Named("status", status),
+	).Scan(&id, &createdAt, &updatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	tglGoLive, _ := time.Parse("2006-01-02", req.TanggalGoLive)
+
+	return &model.Proyek{
+		ID:            id.String(),
+		NamaKegiatan:  req.NamaKegiatan,
+		Kategori:      req.Kategori,
+		UnitKerja:     req.UnitKerja,
+		Vendor:        req.Vendor,
+		TanggalGoLive: tglGoLive,
+		StatusPIR:     status,
+		CreatedAt:     createdAt,
+		UpdatedAt:     updatedAt,
+	}, nil
+}
+
+func (r *ProyekRepository) UpdateStatus(ctx context.Context, id, status string) error {
+	_, err := r.DB.ExecContext(ctx, `
+		UPDATE proyek
+		SET status_pir = @status, updated_at = SYSUTCDATETIME()
+		WHERE id = @id
+	`, sql.Named("status", status), sql.Named("id", id))
+	return err
+}
+

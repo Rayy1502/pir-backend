@@ -32,7 +32,12 @@ type ProyekDetail struct {
 	TanggalJatuhTempo string          `json:"tanggal_jatuh_tempo"`
 	Timeline          []TimelineStage `json:"timeline"`
 	PIRFormID         *string         `json:"pir_form_id,omitempty"`
+	PIRFormStatus     *string         `json:"pir_form_status,omitempty"`
+	ApprovedBy        *string         `json:"approved_by,omitempty"`
+	ApprovedAt        *string         `json:"approved_at,omitempty"`
 	LaporanID         *string         `json:"laporan_id,omitempty"`
+	StatusLaporan     *string         `json:"status_laporan,omitempty"`
+	FileTTDURL        *string         `json:"file_ttd_url,omitempty"`
 }
 
 type StatistikPIR struct {

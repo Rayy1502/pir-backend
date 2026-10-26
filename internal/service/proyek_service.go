@@ -20,6 +20,10 @@ func (s *ProyekService) GetAll(ctx context.Context, f dto.ProyekFilter) ([]model
 	return s.Repo.GetAll(ctx, f)
 }
 
+func (s *ProyekService) Create(ctx context.Context, req dto.CreateProyekRequest) (*model.Proyek, error) {
+	return s.Repo.Create(ctx, req)
+}
+
 func (s *ProyekService) GetByID(ctx context.Context, id string) (*model.Proyek, error) {
 	return s.Repo.GetByID(ctx, id)
 }

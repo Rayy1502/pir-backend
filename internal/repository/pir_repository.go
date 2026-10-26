@@ -97,7 +97,7 @@ func (r *PIRRepository) GetByID(ctx context.Context, id string) (*model.PIRForm,
 			f.id, f.proyek_id, f.tujuan_awal, f.metode, f.catatan_kondisi,
 			f.nama_narasumber, f.jabatan_narasumber, f.daftar_pertanyaan,
 			f.kesimpulan_wawancara, f.responden, f.status, f.created_by,
-			f.created_at, f.updated_at,
+			f.created_at, f.updated_at, f.approved_by, f.approved_at,
 			p.id, p.nama_kegiatan, p.kategori, p.unit_kerja, p.vendor, p.tanggal_go_live, p.status_pir
 		FROM pir_form f
 		JOIN proyek p ON f.proyek_id = p.id
@@ -105,14 +105,15 @@ func (r *PIRRepository) GetByID(ctx context.Context, id string) (*model.PIRForm,
 	`
 	var form model.PIRForm
 	var formID, proyekID, createdByUID, pID mssql.UniqueIdentifier
-	var crBy sql.NullString
+	var crBy, appBy sql.NullString
+	var appAt sql.NullTime
 	var p model.Proyek
 
 	err := r.DB.QueryRowContext(ctx, query, sql.Named("id", id)).Scan(
 		&formID, &proyekID, &form.TujuanAwal, &form.Metode, &form.CatatanKondisi,
 		&form.NamaNarasumber, &form.JabatanNarasumber, &form.DaftarPertanyaan,
 		&form.KesimpulanWawancara, &form.Responden, &form.Status, &createdByUID,
-		&form.CreatedAt, &form.UpdatedAt,
+		&form.CreatedAt, &form.UpdatedAt, &appBy, &appAt,
 		&pID, &p.NamaKegiatan, &p.Kategori, &p.UnitKerja, &p.Vendor, &p.TanggalGoLive, &p.StatusPIR,
 	)
 	if err != nil {
@@ -130,6 +131,12 @@ func (r *PIRRepository) GetByID(ctx context.Context, id string) (*model.PIRForm,
 	if crBy.Valid {
 		form.CreatedBy = &crBy.String
 	}
+	if appBy.Valid {
+		form.ApprovedBy = &appBy.String
+	}
+	if appAt.Valid {
+		form.ApprovedAt = &appAt.Time
+	}
 
 	return &form, nil
 }
@@ -140,7 +147,7 @@ func (r *PIRRepository) getByIDWithNullCreatedBy(ctx context.Context, id string)
 			f.id, f.proyek_id, ISNULL(f.tujuan_awal, ''), ISNULL(f.metode, ''), ISNULL(f.catatan_kondisi, ''),
 			ISNULL(f.nama_narasumber, ''), ISNULL(f.jabatan_narasumber, ''), ISNULL(f.daftar_pertanyaan, ''),
 			ISNULL(f.kesimpulan_wawancara, ''), ISNULL(f.responden, ''), ISNULL(f.status, 'draft'),
-			f.created_at, f.updated_at,
+			f.created_at, f.updated_at, f.approved_by, f.approved_at,
 			p.id, p.nama_kegiatan, p.kategori, p.unit_kerja, ISNULL(p.vendor, ''), p.tanggal_go_live, p.status_pir
 		FROM pir_form f
 		JOIN proyek p ON f.proyek_id = p.id
@@ -148,13 +155,15 @@ func (r *PIRRepository) getByIDWithNullCreatedBy(ctx context.Context, id string)
 	`
 	var form model.PIRForm
 	var formID, proyekID, pID mssql.UniqueIdentifier
+	var appBy sql.NullString
+	var appAt sql.NullTime
 	var p model.Proyek
 
 	err := r.DB.QueryRowContext(ctx, query, sql.Named("id", id)).Scan(
 		&formID, &proyekID, &form.TujuanAwal, &form.Metode, &form.CatatanKondisi,
 		&form.NamaNarasumber, &form.JabatanNarasumber, &form.DaftarPertanyaan,
 		&form.KesimpulanWawancara, &form.Responden, &form.Status,
-		&form.CreatedAt, &form.UpdatedAt,
+		&form.CreatedAt, &form.UpdatedAt, &appBy, &appAt,
 		&pID, &p.NamaKegiatan, &p.Kategori, &p.UnitKerja, &p.Vendor, &p.TanggalGoLive, &p.StatusPIR,
 	)
 	if err != nil {
@@ -168,8 +177,30 @@ func (r *PIRRepository) getByIDWithNullCreatedBy(ctx context.Context, id string)
 	form.ProyekID = proyekID.String()
 	p.ID = pID.String()
 	form.Proyek = &p
+	if appBy.Valid {
+		form.ApprovedBy = &appBy.String
+	}
+	if appAt.Valid {
+		form.ApprovedAt = &appAt.Time
+	}
 
 	return &form, nil
+}
+
+func (r *PIRRepository) Approve(ctx context.Context, id string, approvedBy string) error {
+	query := `
+		UPDATE pir_form
+		SET status = 'approved',
+		    approved_by = @approved_by,
+		    approved_at = SYSUTCDATETIME(),
+		    updated_at = SYSUTCDATETIME()
+		WHERE id = @id
+	`
+	_, err := r.DB.ExecContext(ctx, query,
+		sql.Named("id", id),
+		sql.Named("approved_by", approvedBy),
+	)
+	return err
 }
 
 func (r *PIRRepository) GetByProyekID(ctx context.Context, proyekID string) (*model.PIRForm, error) {
