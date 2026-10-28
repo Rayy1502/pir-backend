@@ -20,6 +20,46 @@ func NewSurveyService(surveyRepo *repository.SurveyRepository, pirRepo *reposito
 	}
 }
 
+func (s *SurveyService) SaveQuestions(ctx context.Context, pirFormID string, req *model.SaveQuestionsRequest) error {
+	if pirFormID == "" {
+		return errors.New("pir_form_id is required")
+	}
+
+	pir, err := s.pirRepo.GetByID(ctx, pirFormID)
+	if err != nil || pir == nil {
+		return errors.New("pir_form_not_found")
+	}
+
+	return s.surveyRepo.SaveQuestions(ctx, pirFormID, req.Pertanyaan)
+}
+
+func (s *SurveyService) GetPublicSurvey(ctx context.Context, pirFormID string) (*model.PublicSurveyResponse, error) {
+	if pirFormID == "" {
+		return nil, errors.New("pir_form_id is required")
+	}
+
+	return s.surveyRepo.GetPublicSurvey(ctx, pirFormID)
+}
+
+func (s *SurveyService) PublicSubmit(ctx context.Context, pirFormID string, req *model.PublicSubmitSurveyRequest) error {
+	if pirFormID == "" {
+		return errors.New("pir_form_id is required")
+	}
+
+	if req.NamaResponden == "" {
+		return errors.New("nama_responden_wajib_diisi")
+	}
+
+	if req.Kepuasan < 1 || req.Kepuasan > 5 {
+		req.Kepuasan = 5
+	}
+	if req.KesesuaianTujuan < 1 || req.KesesuaianTujuan > 5 {
+		req.KesesuaianTujuan = 5
+	}
+
+	return s.surveyRepo.PublicSubmit(ctx, pirFormID, req)
+}
+
 func (s *SurveyService) SaveSurvey(ctx context.Context, pirFormID string, req *model.SubmitSurveyRequest) error {
 	if pirFormID == "" {
 		return errors.New("pir_form_id is required")
@@ -47,17 +87,6 @@ func (s *SurveyService) GetSurvey(ctx context.Context, pirFormID string) (*model
 
 	res, err := s.surveyRepo.GetByPIRFormID(ctx, pirFormID)
 	if err != nil {
-		if err.Error() == "survey_not_found" {
-			// Return default empty template so client can fill it immediately
-			return &model.SurveyResponse{
-				PIRFormID:        pirFormID,
-				Kepuasan:         5,
-				KesesuaianTujuan: 5,
-				Kendala:          "",
-				Saran:            "",
-				Pertanyaan:       []model.SurveyPertanyaan{},
-			}, nil
-		}
 		return nil, err
 	}
 

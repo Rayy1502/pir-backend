@@ -58,7 +58,7 @@ func main() {
 	pengaturanHandler := handler.NewPengaturanHandler(pengaturanService)
 	proyekHandler := handler.NewProyekHandler(proyekService)
 	dashboardHandler := handler.NewDashboardHandler(proyekService)
-	pirHandler := handler.NewPIRHandler(pirService)
+	pirHandler := handler.NewPIRHandler(pirService, "./uploads")
 	surveyHandler := handler.NewSurveyHandler(surveyService)
 	laporanHandler := handler.NewLaporanHandler(laporanService, "./uploads")
 	tindakLanjutHandler := handler.NewTindakLanjutHandler(tindakLanjutService, "./uploads")
@@ -116,6 +116,10 @@ func main() {
 		// Auth routes (public)
 		r.Post("/auth/login", authHandler.Login)
 
+		// Public Survey routes for respondents (no auth needed)
+		r.Get("/public/survey/{id}", surveyHandler.GetPublic)
+		r.Post("/public/survey/{id}/submit", surveyHandler.PublicSubmit)
+
 		// Auth routes (protected)
 		r.Group(func(r chi.Router) {
 
@@ -137,14 +141,18 @@ func main() {
 			r.Get("/dashboard/stats", dashboardHandler.Stats)
 			r.Get("/dashboard/statistik-pir", dashboardHandler.StatistikPIR)
 
-			// PIR Form Step 1
+			// PIR Form Step 1 & Dokumentasi
 			r.Post("/pir", pirHandler.Create)
 			r.Get("/pir", pirHandler.GetByProyekOrList)
 			r.Get("/pir/{id}", pirHandler.GetByID)
 			r.Put("/pir/{id}", pirHandler.Update)
 			r.Put("/pir/{id}/approve", pirHandler.Approve)
+			r.Get("/pir/{id}/dokumentasi", pirHandler.GetDokumentasi)
+			r.Post("/pir/{id}/dokumentasi", pirHandler.UploadDokumentasi)
+			r.Delete("/pir/dokumentasi/{dokId}", pirHandler.DeleteDokumentasi)
 
-			// Survey Step 2
+			// Survey Step 2 (PIC)
+			r.Post("/pir/{id}/survey/questions", surveyHandler.SaveQuestions)
 			r.Post("/pir/{id}/survey", surveyHandler.Save)
 			r.Get("/pir/{id}/survey", surveyHandler.Get)
 

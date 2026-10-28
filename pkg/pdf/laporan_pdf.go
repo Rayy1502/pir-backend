@@ -94,7 +94,7 @@ func GenerateLaporanPDF(l *model.LaporanPIR) ([]byte, error) {
 	renderMetaRow("Kategori Pengembangan", kategori)
 	renderMetaRow("Unit Kerja Pemilik", unitKerja)
 	renderMetaRow("Vendor / Pengembang", vendor)
-	renderMetaRow("Tanggal Go Live", goLive)
+	renderMetaRow("Tanggal Rilis", goLive)
 	renderMetaRow("Metode PIR", metode)
 	renderMetaRow("Tanggal Laporan", l.TanggalLaporan)
 	pdf.CellFormat(0, 1, "", "T", 1, "L", false, 0, "")

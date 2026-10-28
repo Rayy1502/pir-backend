@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/Rayy1502/pir-backend/internal/model"
 	mssql "github.com/microsoft/go-mssqldb"
@@ -267,3 +268,79 @@ func (r *PIRRepository) Update(ctx context.Context, id string, req *model.Update
 
 	return nil
 }
+
+func (r *PIRRepository) GetDokumentasi(ctx context.Context, pirFormID string, kategori string) ([]*model.PIRDokumentasi, error) {
+	query := `
+		SELECT id, pir_form_id, kategori, nama_file, url, ISNULL(ukuran_bytes, 0), ISNULL(keterangan, ''), uploaded_at
+		FROM pir_dokumentasi
+		WHERE pir_form_id = @pir_form_id
+	`
+	if kategori != "" {
+		query += ` AND kategori = @kategori`
+	}
+	query += ` ORDER BY uploaded_at DESC`
+
+	var rows *sql.Rows
+	var err error
+	if kategori != "" {
+		rows, err = r.DB.QueryContext(ctx, query, sql.Named("pir_form_id", pirFormID), sql.Named("kategori", kategori))
+	} else {
+		rows, err = r.DB.QueryContext(ctx, query, sql.Named("pir_form_id", pirFormID))
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	list := make([]*model.PIRDokumentasi, 0)
+	for rows.Next() {
+		var d model.PIRDokumentasi
+		var id, formID mssql.UniqueIdentifier
+		if err := rows.Scan(&id, &formID, &d.Kategori, &d.NamaFile, &d.URL, &d.UkuranBytes, &d.Keterangan, &d.UploadedAt); err != nil {
+			return nil, err
+		}
+		d.ID = id.String()
+		d.PIRFormID = formID.String()
+		list = append(list, &d)
+	}
+	return list, nil
+}
+
+func (r *PIRRepository) AddDokumentasi(ctx context.Context, pirFormID, kategori, namaFile, fileURL string, ukuranBytes int64, keterangan string) (*model.PIRDokumentasi, error) {
+	query := `
+		INSERT INTO pir_dokumentasi (pir_form_id, kategori, nama_file, url, ukuran_bytes, keterangan)
+		OUTPUT INSERTED.id, INSERTED.uploaded_at
+		VALUES (@pir_form_id, @kategori, @nama_file, @url, @ukuran_bytes, @keterangan)
+	`
+	var id mssql.UniqueIdentifier
+	var uploadedAt time.Time
+	err := r.DB.QueryRowContext(ctx, query,
+		sql.Named("pir_form_id", pirFormID),
+		sql.Named("kategori", kategori),
+		sql.Named("nama_file", namaFile),
+		sql.Named("url", fileURL),
+		sql.Named("ukuran_bytes", ukuranBytes),
+		sql.Named("keterangan", keterangan),
+	).Scan(&id, &uploadedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.PIRDokumentasi{
+		ID:          id.String(),
+		PIRFormID:   pirFormID,
+		Kategori:    kategori,
+		NamaFile:    namaFile,
+		URL:         fileURL,
+		UkuranBytes: ukuranBytes,
+		Keterangan:  keterangan,
+		UploadedAt:  uploadedAt,
+	}, nil
+}
+
+func (r *PIRRepository) DeleteDokumentasi(ctx context.Context, id string) error {
+	query := `DELETE FROM pir_dokumentasi WHERE id = @id`
+	_, err := r.DB.ExecContext(ctx, query, sql.Named("id", id))
+	return err
+}
+

@@ -79,3 +79,28 @@ func (s *PIRService) Approve(ctx context.Context, id, approvedBy string) error {
 	}
 	return s.Repo.Approve(ctx, id, approvedBy)
 }
+
+func (s *PIRService) GetDokumentasi(ctx context.Context, pirFormID, kategori string) ([]*model.PIRDokumentasi, error) {
+	if pirFormID == "" {
+		return nil, errors.New("pirFormID tidak boleh kosong")
+	}
+	return s.Repo.GetDokumentasi(ctx, pirFormID, kategori)
+}
+
+func (s *PIRService) AddDokumentasi(ctx context.Context, pirFormID, kategori, namaFile, fileURL string, ukuranBytes int64, keterangan string) (*model.PIRDokumentasi, error) {
+	if pirFormID == "" {
+		return nil, errors.New("pirFormID tidak boleh kosong")
+	}
+	if namaFile == "" || fileURL == "" {
+		return nil, errors.New("file tidak valid")
+	}
+	return s.Repo.AddDokumentasi(ctx, pirFormID, kategori, namaFile, fileURL, ukuranBytes, keterangan)
+}
+
+func (s *PIRService) DeleteDokumentasi(ctx context.Context, id string) error {
+	if id == "" {
+		return errors.New("id tidak boleh kosong")
+	}
+	return s.Repo.DeleteDokumentasi(ctx, id)
+}
+

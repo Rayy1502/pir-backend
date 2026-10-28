@@ -69,7 +69,7 @@ func (h *ProyekHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.TanggalGoLive == "" {
-		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "Tanggal go live wajib diisi", nil)
+		response.Error(w, http.StatusBadRequest, "VALIDATION_ERROR", "Tanggal rilis wajib diisi", nil)
 		return
 	}
 

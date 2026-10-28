@@ -54,3 +54,15 @@ type UpdatePIRRequest struct {
 	Responden           string `json:"responden"`
 	Status              string `json:"status"`
 }
+
+type PIRDokumentasi struct {
+	ID          string    `json:"id"`
+	PIRFormID   string    `json:"pir_form_id"`
+	Kategori    string    `json:"kategori"` // 'observasi' atau 'wawancara'
+	NamaFile    string    `json:"nama_file"`
+	URL         string    `json:"url"`
+	UkuranBytes int64     `json:"ukuran_bytes"`
+	Keterangan  string    `json:"keterangan"`
+	UploadedAt  time.Time `json:"uploaded_at"`
+}
+

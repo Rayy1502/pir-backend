@@ -248,10 +248,10 @@ func (r *ProyekRepository) GetDetailByID(ctx context.Context, id string) (*model
 	tglPercobaanSelesai := p.TanggalGoLive.AddDate(0, 2, 0)
 	tglBatasAkhir := tglPercobaanSelesai.AddDate(0, 1, 0)
 
-	// 1. Go Live
+	// 1. Rilis
 	t1 := model.TimelineStage{
 		Key:       "go_live",
-		Nama:      "Go Live",
+		Nama:      "Rilis",
 		Deskripsi: fmt.Sprintf("Sistem resmi rilis pada %s (Masa uji coba pengguna: 2 bulan)", p.TanggalGoLive.Format("02 Jan 2006")),
 		Status:    "selesai",
 		Tanggal:   p.TanggalGoLive.Format("2006-01-02"),
@@ -413,7 +413,7 @@ func (r *ProyekRepository) Create(ctx context.Context, req dto.CreateProyekReque
 			status = "pending"
 		} else {
 			batasBulan := 2
-			_ = r.DB.QueryRowContext(ctx, "SELECT batas_waktu_bulan FROM pengaturan WHERE unit = @unit", sql.Named("unit", req.UnitKerja)).Scan(&batasBulan)
+			_ = r.DB.QueryRowContext(ctx, "SELECT batas_waktu_bulan FROM pengaturan_unit_kerja WHERE unit_kerja = @unit AND aktif = 1", sql.Named("unit", req.UnitKerja)).Scan(&batasBulan)
 			if batasBulan <= 0 {
 				batasBulan = 2
 			}

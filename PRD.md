@@ -3,7 +3,7 @@
 ## PIR Monitoring — PT PUSRI Palembang
 
 **Versi:** 1.3  
-**Tanggal Terakhir Diperbarui:** 26 Okt 2026
+**Tanggal Terakhir Diperbarui:** 28 Okt 2026
 **Pemilik Produk:** Divisi Teknologi Informasi PT PUSRI  
 **Stakeholder:** Budi Santoso (Staff Divisi TI)  
 **Status:** In Progress (Aktif Dikembangkan)
@@ -12,7 +12,7 @@
 
 ## 1. Latar Belakang
 
-PT PUSRI Palembang memiliki banyak proyek pengembangan TI (aplikasi, infrastruktur, end user computing) yang go live setiap tahunnya. Setiap proyek **wajib** menjalani **Post Implementation Review (PIR)** maksimal **2 bulan setelah go live** untuk mengevaluasi keberhasilan implementasi.
+PT PUSRI Palembang memiliki banyak proyek pengembangan TI (aplikasi, infrastruktur, end user computing) yang rilis setiap tahunnya. Setiap proyek **wajib** menjalani **Post Implementation Review (PIR)** maksimal **2 bulan setelah rilis** untuk mengevaluasi keberhasilan implementasi.
 
 Saat ini proses PIR dilakukan secara manual menggunakan dokumen terpisah, sehingga:
 
@@ -65,17 +65,17 @@ Saat ini proses PIR dilakukan secara manual menggunakan dokumen terpisah, sehing
   - PIR Selesai
 - **Alert banner** merah jika ada proyek terlambat PIR, dengan tombol "Lihat Notifikasi"
 - **Tabel Daftar Pengembangan TI:**
-  - Kolom: Nama Kegiatan, Kategori, Tgl Go Live, Unit Kerja, Status PIR, Aksi
+  - Kolom: Nama Kegiatan, Kategori, Tgl Rilis, Unit Kerja, Status PIR, Aksi
   - Filter: pencarian nama kegiatan, kategori, status PIR
   - Aksi kondisional: "Buat PIR" (jika terlambat/pending) atau "Detail" (jika selesai/belum jatuh tempo)
 - **Donut Chart Statistik Status PIR:** Selesai, Pending, Terlambat, Belum jatuh tempo
 
 ### 4.3 Detail Proyek & Siklus Alur PIR (5 Tahap)
 
-- Header proyek: nama, kategori, unit kerja, vendor, tanggal go live, kebijakan batas waktu
+- Header proyek: nama, kategori, unit kerja, vendor, tanggal rilis, kebijakan batas waktu
 - Badge status PIR: Selesai, Pending, Terlambat, Belum jatuh tempo
 - **Aturan Waktu Siklus PIR:**
-  1. **Masa Uji Coba Pengguna (2 Bulan):** Pasca go-live $T_0$, sistem memasuki masa adaptasi pengguna selama 2 bulan. Status PIR: `belum-jatuh-tempo`.
+  1. **Masa Uji Coba Pengguna (2 Bulan):** Pasca rilis $T_0$, sistem memasuki masa adaptasi pengguna selama 2 bulan. Status PIR: `belum-jatuh-tempo`.
   2. **Notifikasi PIR Dual-Level:**
      - **Level 1 (Masa Percobaan Selesai):** Tepat saat $T_0 + 2\text{ bulan}$, sistem memicu notifikasi waktu pelaksanaan PIR (status proyek: `pending`).
      - **Level 2 (Peringatan Eskalasi Toleransi 1 Bulan):** Jika mendekati 1 bulan pasca uji coba belum membuat PIR (H-7 sebelum $T_0 + 3\text{ bulan}$), muncul peringatan eskalasi kritis. Jika melampaui $T_0 + 3\text{ bulan}$, status proyek otomatis menjadi `terlambat`.
@@ -85,7 +85,7 @@ Saat ini proses PIR dilakukan secara manual menggunakan dokumen terpisah, sehing
      - Proyek **tidak langsung selesai** saat draf dibuat; proyek tetap `pending` (*Menunggu TTD*) sampai berkas scan/digital PDF yang telah ditandatangani diunggah.
      - Setelah upload bukti PDF bertanda tangan berhasil, status proyek resmi berpindah ke **`selesai`**.
   5. **Tindak Lanjut Rekomendasi:** Pemantauan penyelesaian action items temuan evaluasi hingga seluruh PIC menuntaskan bukti tindak lanjut.
-- **Visual Timeline tracker** 5 tahap: Go Live → Notifikasi PIR → PIR Review (ACC) → Laporan Resmi (TTD) → Tindak Lanjut
+- **Visual Timeline tracker** 5 tahap: Rilis → Notifikasi PIR → PIR Review (ACC) → Laporan Resmi (TTD) → Tindak Lanjut
 - **Alur Persetujuan & Pengesahan Dokumen PIR:** Dua kartu kontrol interaktif pada halaman detail untuk eksekusi ACC penilai dan upload berkas PDF bertanda tangan.
 - **3 KPI card:** Tingkat Kepuasan, Kesesuaian Tujuan, Progress Tindak Lanjut
 
@@ -94,7 +94,7 @@ Saat ini proses PIR dilakukan secara manual menggunakan dokumen terpisah, sehing
 **Step 1 — Pembuatan PIR:**
 
 - Nama Kegiatan (readonly, pre-filled dari proyek atau input proyek baru)
-- Tanggal Go Live (readonly/input)
+- Tanggal Rilis (readonly/input)
 - Unit Kerja (readonly/input)
 - Vendor/Tim Pengembang (wajib, validasi)
 - Tujuan Awal Pengembangan (textarea, wajib)
@@ -121,7 +121,7 @@ Saat ini proses PIR dilakukan secara manual menggunakan dokumen terpisah, sehing
   - Kop surat PT PUSRI — Divisi Teknologi Informasi
   - Nomor dokumen: PIR/TI/[tahun]/[nomor urut]
   - Judul: "Laporan Post Implementation Review"
-  - Metadata: Kegiatan, Go Live, Metode
+  - Metadata: Kegiatan, Rilis, Metode
   - Section: Ringkasan, Hasil Utama, Rekomendasi
   - **Kolom Tanda Tangan Ganda:** Staff Pemilik Kegiatan TI (Disusun oleh) & Vice President Teknologi Informasi (Menyetujui)
 - Tombol: Cetak | Export PDF | Simpan | Lanjut ke Tindak Lanjut
@@ -194,7 +194,7 @@ Login → Dashboard
 
 ## 6. Aturan Bisnis
 
-1. **Batas waktu PIR:** 2 bulan setelah tanggal go live (dapat dikonfigurasi di Pengaturan).
+1. **Batas waktu PIR:** 2 bulan setelah tanggal rilis (dapat dikonfigurasi di Pengaturan).
 2. **Status PIR otomatis:**
 
 - **Belum jatuh tempo** — belum lewat 2 bulan
@@ -371,7 +371,7 @@ Login → Dashboard
 
 ## 13. Metrik Keberhasilan
 
-- 100% proyek go live memiliki PIR dalam 2 bulan
+- 100% proyek rilis memiliki PIR dalam 2 bulan
 - Waktu pembuatan PIR turun dari 2 jam → 20 menit
 - 0 proyek terlewat tanpa notifikasi
 - Tindak lanjut selesai dalam 30 hari setelah laporan
@@ -437,7 +437,7 @@ Login → Dashboard
 - [x] Backend: `PUT /v1/pir/{id}/approve` (Persetujuan / ACC hasil evaluasi & survei PIR oleh VP TI / Penilai)
 - [x] Backend: `POST /v1/laporan/{id}/upload-ttd` (Upload scan/digital PDF bertanda tangan sah dan update status proyek menjadi 'selesai')
 - [x] Frontend: Halaman `/proyek/[id]`
-- [x] Frontend: Visual Timeline 5 tahap: Go Live → Notifikasi → PIR Review → Laporan → Tindak Lanjut (Hijau, Kuning, Merah, Abu)
+- [x] Frontend: Visual Timeline 5 tahap: Rilis → Notifikasi → PIR Review → Laporan → Tindak Lanjut (Hijau, Kuning, Merah, Abu)
 - [x] Frontend: Alur Persetujuan & Pengesahan Dokumen PIR interaktif (Kartu status ACC, Kartu draf PDF & upload TTD)
 - [x] Frontend: Modal konfirmasi ACC penilai dan Modal upload bukti PDF bertanda tangan
 - [x] Frontend: 3 KPI Card (Kepuasan, Kesesuaian Tujuan, Progress Tindak Lanjut)
@@ -449,13 +449,17 @@ Login → Dashboard
 - [x] Backend: `GET /v1/pir/{id}` & `PUT /v1/pir/{id}`
 - [x] Frontend: Halaman form wizard Step 1 (Mendukung input Proyek Baru jika tabel kosong / beralih mode, vendor, tujuan awal, radio metode: Observasi / Wawancara / Survey)
 
-#### 6. PIR Form Step 2: Form Survey
+#### 6. PIR Form Step 2: Form Survey & Tautan Review Publik
 
 - [x] Database: Tabel `survey_pertanyaan` & `survey_jawaban`
-- [x] Backend: `POST /v1/pir/{id}/survey`
-- [x] Backend: `GET /v1/pir/{id}/survey`
-- [x] Frontend: Form survey kepuasan 1-5, kesesuaian tujuan 1-5, textarea kendala & saran
-- [x] Frontend: Fitur tambah pertanyaan kustom dinamis
+- [x] Backend: `POST /v1/pir/{id}/survey/questions` (PIC menyimpan desain pertanyaan standar & kustom)
+- [x] Backend: `GET /v1/public/survey/{id}` (Data proyek & kuesioner publik untuk responden tanpa login)
+- [x] Backend: `POST /v1/public/survey/{id}/submit` (Responden mengirimkan review & identitas nama/unit kerja)
+- [x] Backend: `GET /v1/pir/{id}/survey` (PIC memantau status respon dan rekap hasil review)
+- [x] Backend: `POST /v1/pir/{id}/survey` (Fallback pengisian manual PIC jika wawancara tatap muka)
+- [x] Frontend: Halaman Publik `/survey/[id]` untuk Responden (Desain resmi PT PUSRI, responsif HP & Desktop)
+- [x] Frontend: Desain Pertanyaan di Step 2 PIC, Kartu Tautan Review Publik (Copy Link & Buka Form), serta Widget Live Status Respon
+- [x] Frontend: Sinkronisasi otomatis data kepuasan, kesesuaian, kendala, saran dari respon user ke Step 3 Laporan PIR
 
 #### 7. PIR Form Step 3: Laporan PIR & PDF
 
@@ -480,7 +484,7 @@ Login → Dashboard
 #### 9. Notifikasi & Background Scheduler
 
 - [x] Database: Tabel `notifikasi`
-- [ ] Backend: Worker scheduler di `internal/scheduler` (Evaluasi harian selisih tanggal go live vs batas waktu unit kerja)
+- [ ] Backend: Worker scheduler di `internal/scheduler` (Evaluasi harian selisih tanggal rilis vs batas waktu unit kerja)
 - [ ] Backend: `GET /v1/notifikasi`, `PUT /v1/notifikasi/{id}/read`, `PUT /v1/notifikasi/read-all`
 - [x] Frontend: Halaman `/notifikasi` (Notifikasi Dual-Level: Masa Percobaan 2 Bulan Selesai & Peringatan Eskalasi Toleransi 1 Bulan / H-7)
 - [x] Frontend: Badge count notifikasi di Header dan Sidebar
@@ -491,8 +495,17 @@ Login → Dashboard
 
 | Tanggal         | Area                               | Deskripsi Perubahan                                                                                                                                                                         |   Status   |
 | --------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------: |
+| **28 Okt 2026** | Dokumentasi & Panduan              | Pembuatan dokumen panduan komprehensif `alur.md` yang merinci siklus 5 tahap evaluasi PIR, peran aktor, fungsi tiap modul/halaman web, logika transisi status proyek, dan FAQ operasional | ✅ Selesai |
+| **28 Okt 2026** | Frontend                           | Pembersihan peringatan Tailwind CSS v4: Mengganti seluruh class gradien usang `bg-gradient-to-*` menjadi `bg-linear-to-*` pada `proyek/[id]/page.tsx`, `laporan-pir/page.tsx`, dan `ProjectTable.tsx` | ✅ Selesai |
+| **28 Okt 2026** | Backend & SQL Server               | Perbaikan bug SQL Server scan error `cannot convert <nil> to UniqueIdentifier` pada query `GET /v1/pir/{id}/survey` (`GetByPIRFormID`): mengganti tipe scan kolom `id` tabel `survey_jawaban` hasil `LEFT JOIN` dengan `CAST(j.id AS NVARCHAR(36))` dan `sql.NullString` sehingga aman dan tidak error saat butir pertanyaan belum memiliki jawaban kuesioner | ✅ Selesai |
+| **28 Okt 2026** | Full Stack (DB, Backend, Frontend) | Implementasi fitur unggah berkas bukti dokumentasi interaktif untuk metode Observasi (foto inspeksi, screenshot monitoring, log) dan Wawancara (foto sesi wawancara, scan notulensi berparaf): migrasi skema tabel `pir_dokumentasi`, API endpoints `GET/POST /v1/pir/{id}/dokumentasi` & `DELETE /v1/pir/dokumentasi/{dokId}`, komponen UI upload file dan manajemen daftar berkas terlampir di Step 2 `/pir-form`. | ✅ Selesai |
+| **28 Okt 2026** | Frontend & Dokumentasi Alur       | Pemisahan alur Step 2 Formulir PIR secara dinamis sesuai 3 metode evaluasi (Observasi Langsung, Wawancara Terarah, dan Kuesioner Survei). Menghilangkan tabrakan data PIC vs Responden publik. Serta penambahan dokumentasi lengkap Bab 5 di `alur.md` yang merinci karakteristik proyek, kriteria narasumber/penguji, 4 aspek checklist teknis, panduan pertanyaan wawancara narasumber, skala penilaian skor (1-5), dan matriks komparasi pemilihan metode. | ✅ Selesai |
+| **28 Okt 2026** | UI & Copywriting                   | Penggantian seluruh istilah 'go live' / 'go-live' menjadi 'rilis' / 'Rilis' pada antarmuka frontend, backend response/PDF, dan dokumentasi PRD | ✅ Selesai |
+| **27 Okt 2026** | Frontend                           | Perbaikan isolasi state formulir PIR & reset wizard: Menambahkan fungsi `resetFormState` dan sinkronisasi `currentStep` berbasis URL `?step=1..4` pada `/pir-form`, sehingga saat membuat PIR untuk proyek baru yang baru ditambahkan dari Daftar Pengembangan TI, form selalu bersih dan mulai dari Step 1 (Inisiasi PIR) tanpa melompat ke Step 2 (Form Survey) atau mewarisi data responden/survei proyek sebelumnya ('Est. 25 Orang'). Serta menyelaraskan navigasi eksplisit `&step=1` dari seluruh titik masuk (Daftar Pengembangan TI, Dashboard, dan Detail Proyek). | ✅ Selesai |
+| **27 Okt 2026** | Full Stack (Backend & Frontend)    | Implementasi alur survei dua arah: PIC merancang daftar pertanyaan evaluasi di Step 2 dan menghasilkan tautan kuesioner publik shareable (`/survey/[id]`), halaman publik kuesioner responden beridentitas resmi PUSRI tanpa perlu login, API publik kuesioner (`GET /v1/public/survey/{id}` & `POST /v1/public/survey/{id}/submit`), widget live status respon di form PIC, dan auto-sinkronisasi nilai evaluasi responden ke Step 3 Laporan PIR | ✅ Selesai |
+| **27 Okt 2026** | Database & Backend                 | Eksekusi migrasi skema `000003_workflow_approval_signed_pdf.up.sql` pada SQL Server (menambahkan kolom `approved_by` & `approved_at` di tabel `pir_form`, serta `file_ttd_url`, `file_ttd_nama`, `status_laporan`, `signed_at` di `laporan_pir` mengatasi error MSSQL 207), serta perbaikan query nama tabel `pengaturan_unit_kerja` pada `proyek_repository.go` | ✅ Selesai |
 | **23 Okt 2026** | Full Stack (Backend & Frontend)    | Perbaikan error `JSON.parse` tak terduga (respons non-JSON `404 page not found` dari proses server lama): restart server backend dengan binary baru yang memuat endpoint `PUT /v1/pir/{id}/approve` & `POST /v1/laporan/{id}/upload-ttd`, penambahan handler fallback JSON 404/405 pada Chi router, serta pengamanan `apiFetch` pada frontend client agar memvalidasi `content-type` sebelum parsing | ✅ Selesai |
-| **23 Okt 2026** | Full Stack (DB, Backend, Frontend) | Implementasi penyesuaian alur 5-tahap siklus PIR: masa percobaan 2 bulan pasca go-live, notifikasi dual-level (Level 1: Masa Percobaan Selesai, Level 2: Eskalasi Toleransi 1 Bulan/H-7), endpoint & modal ACC PIR penilai (`PUT /v1/pir/{id}/approve`), penambahan blok tanda tangan ganda Staff TI & VP TI pada PDF laporan resmi, endpoint upload bukti scan/digital PDF bertanda tangan (`POST /v1/laporan/{id}/upload-ttd`), serta finalisasi status proyek ke 'selesai' hanya setelah berkas bertanda tangan sah diunggah | ✅ Selesai |
+| **23 Okt 2026** | Full Stack (DB, Backend, Frontend) | Implementasi penyesuaian alur 5-tahap siklus PIR: masa percobaan 2 bulan pasca rilis, notifikasi dual-level (Level 1: Masa Percobaan Selesai, Level 2: Eskalasi Toleransi 1 Bulan/H-7), endpoint & modal ACC PIR penilai (`PUT /v1/pir/{id}/approve`), penambahan blok tanda tangan ganda Staff TI & VP TI pada PDF laporan resmi, endpoint upload bukti scan/digital PDF bertanda tangan (`POST /v1/laporan/{id}/upload-ttd`), serta finalisasi status proyek ke 'selesai' hanya setelah berkas bertanda tangan sah diunggah | ✅ Selesai |
 | **23 Okt 2026** | Frontend                           | Pembuatan halaman `/daftar-pengembangan` (Daftar Pengembangan TI) lengkap dengan 4 StatCards, 6 Status Filter Tabs, Toolbar pencarian, Filter Kategori & Unit Kerja, Switcher mode Table & Grid Card, Ekspor CSV, Paginasi, dan Modal Tambah Proyek Baru | ✅ Selesai |
 | **23 Okt 2026** | Full Stack (Frontend & Backend)    | Perbaikan bug TypeError `can't access property "filter", list is null` pada `store/notifikasi.ts`: inisialisasi slice kosong `make([]..., 0)` pada SQL repository backend serta penambahan defensive null-check `(data || [])` pada frontend API clients (`proyekApi`, `tindakLanjutApi`, `laporanApi`, `pengaturanApi`) dan komponen UI dashboard | ✅ Selesai |
 | **23 Okt 2026** | Full Stack & DB                    | Pembersihan 6 data seed dummy di SQL Server (SSMS), penambahan API `POST /v1/proyek`, integrasi pembuatan proyek & PIR baru langsung di Step 1 `/pir-form`, otomatisasi update status `status_pir = 'selesai'` saat laporan terbit, empty state dashboard interaktif, serta tombol langsung navigasi 'Selesai & Ke Dashboard' | ✅ Selesai |
