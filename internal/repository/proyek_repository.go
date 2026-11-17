@@ -245,19 +245,24 @@ func (r *ProyekRepository) GetDetailByID(ctx context.Context, id string) (*model
 
 	// Visual Timeline 5 Tahap Sesuai Alur Baru
 	now := time.Now()
-	tglPercobaanSelesai := p.TanggalGoLive.AddDate(0, 2, 0)
+	effectiveBatas := detail.BatasWaktuBulan
+	if effectiveBatas <= 0 {
+		effectiveBatas = 2
+	}
+	tglPercobaanSelesai := p.TanggalGoLive.AddDate(0, effectiveBatas, 0)
 	tglBatasAkhir := tglPercobaanSelesai.AddDate(0, 1, 0)
+	tglHMinus7 := tglBatasAkhir.AddDate(0, 0, -7)
 
 	// 1. Rilis
 	t1 := model.TimelineStage{
 		Key:       "go_live",
 		Nama:      "Rilis",
-		Deskripsi: fmt.Sprintf("Sistem resmi rilis pada %s (Masa uji coba pengguna: 2 bulan)", p.TanggalGoLive.Format("02 Jan 2006")),
+		Deskripsi: fmt.Sprintf("Sistem resmi rilis pada %s (Masa uji coba pengguna: %d bulan)", p.TanggalGoLive.Format("02 Jan 2006"), effectiveBatas),
 		Status:    "selesai",
 		Tanggal:   p.TanggalGoLive.Format("2006-01-02"),
 	}
 
-	// 2. Notifikasi PIR (Masa Percobaan 2 Bulan & Peringatan 1 Bulan)
+	// 2. Notifikasi PIR (Masa Percobaan Selesai)
 	var t2 model.TimelineStage
 	t2.Key = "notifikasi"
 	t2.Nama = "Notifikasi PIR"
@@ -268,51 +273,63 @@ func (r *ProyekRepository) GetDetailByID(ctx context.Context, id string) (*model
 		t2.Deskripsi = "Notifikasi diproses & siklus PIR telah selesai disahkan"
 	} else if now.Before(tglPercobaanSelesai) {
 		t2.Status = "belum_dimulai"
-		t2.Deskripsi = fmt.Sprintf("Masa uji coba pengguna sedang berjalan (selesai: %s)", tglPercobaanSelesai.Format("02 Jan 2006"))
-	} else if now.After(tglBatasAkhir) {
-		t2.Status = "terlambat"
-		t2.Deskripsi = fmt.Sprintf("Melebihi batas waktu evaluasi (>1 bulan pasca masa uji coba sejak %s)", tglPercobaanSelesai.Format("02 Jan 2006"))
-	} else if now.After(tglBatasAkhir.AddDate(0, 0, -7)) {
-		t2.Status = "pending"
-		t2.Deskripsi = fmt.Sprintf("Peringatan eskalasi: Hampir 1 bulan pasca uji coba belum buat PIR (Batas: %s)", tglBatasAkhir.Format("02 Jan 2006"))
+		t2.Deskripsi = fmt.Sprintf("Masa uji coba pengguna sedang berjalan (notifikasi PIR akan dikirim pada: %s)", tglPercobaanSelesai.Format("02 Jan 2006"))
 	} else {
-		t2.Status = "pending"
-		t2.Deskripsi = fmt.Sprintf("Masa uji coba 2 bulan selesai pada %s. Waktu pelaksanaan PIR tiba", tglPercobaanSelesai.Format("02 Jan 2006"))
+		t2.Status = "selesai"
+		t2.Deskripsi = fmt.Sprintf("Notifikasi evaluasi PIR telah dikirim pada %s pasca masa uji coba", tglPercobaanSelesai.Format("02 Jan 2006"))
 	}
 
 	// 3. PIR Review (Form Pengambilan Data + Tombol ACC)
+	// Aturan:
+	// - Jika sudah di-ACC / status proyek selesai -> status "selesai"
+	// - Jika notifikasi belum dikirim (now < tglPercobaanSelesai) -> status "belum_dimulai"
+	// - Jika notifikasi sudah muncul (now >= tglPercobaanSelesai) -> status "pending"
+	// - Sesudah sebulan notifikasi dikirim, berubah jadi "terlambat" saat H-7 dari sebulan itu (now >= tglHMinus7)
 	var t3 model.TimelineStage
 	t3.Key = "pir_review"
 	t3.Nama = "PIR Review"
 
-	if hasPIRForm {
-		st := pirStatus.String
-		if pirCreatedAt.Valid {
-			t3.Tanggal = pirCreatedAt.Time.Format("2006-01-02")
-		}
-		if st == "approved" || p.StatusPIR == "selesai" {
-			t3.Status = "selesai"
-			approver := "VP Teknologi Informasi"
-			if detail.ApprovedBy != nil && *detail.ApprovedBy != "" {
-				approver = *detail.ApprovedBy
-			}
-			t3.Deskripsi = fmt.Sprintf("Data evaluasi PIR telah di-ACC & disetujui oleh %s", approver)
-		} else {
-			t3.Status = "pending"
-			t3.Deskripsi = "Form & survey PIR telah diisi, menunggu persetujuan / ACC penilai"
-		}
-	} else if p.StatusPIR == "selesai" {
+	if hasPIRForm && pirCreatedAt.Valid {
+		t3.Tanggal = pirCreatedAt.Time.Format("2006-01-02")
+	}
+
+	isPIRApproved := (hasPIRForm && pirStatus.Valid && pirStatus.String == "approved") || p.StatusPIR == "selesai"
+
+	if isPIRApproved {
 		t3.Status = "selesai"
-		t3.Deskripsi = "Evaluasi dan survey PIR telah selesai disetujui"
-	} else if now.After(tglBatasAkhir) {
-		t3.Status = "terlambat"
-		t3.Deskripsi = "Pengambilan data PIR belum dilakukan dan telah melewati batas waktu"
-	} else if now.After(tglPercobaanSelesai) {
-		t3.Status = "pending"
-		t3.Deskripsi = "Waktu evaluasi PIR tiba, form belum dibuat"
-	} else {
+		approver := "VP Teknologi Informasi"
+		if detail.ApprovedBy != nil && *detail.ApprovedBy != "" {
+			approver = *detail.ApprovedBy
+		}
+		t3.Deskripsi = fmt.Sprintf("Data evaluasi PIR telah di-ACC & disetujui oleh %s", approver)
+	} else if now.Before(tglPercobaanSelesai) {
+		// Notifikasi belum dikirim
 		t3.Status = "belum_dimulai"
-		t3.Deskripsi = "Menunggu masa uji coba 2 bulan selesai"
+		t3.Deskripsi = fmt.Sprintf("Notifikasi belum dikirim, menunggu masa uji coba selesai (%s)", tglPercobaanSelesai.Format("02 Jan 2006"))
+	} else if !now.Before(tglHMinus7) {
+		// H-7 dari sebulan pasca notifikasi dikirim atau telah melewati batas 1 bulan
+		t3.Status = "terlambat"
+		if now.After(tglBatasAkhir) {
+			if hasPIRForm {
+				t3.Deskripsi = "Evaluasi PIR belum di-ACC dan telah melewati batas toleransi 1 bulan pasca notifikasi"
+			} else {
+				t3.Deskripsi = "Pengambilan data & evaluasi PIR belum selesai, melewati batas toleransi 1 bulan pasca notifikasi"
+			}
+		} else {
+			if hasPIRForm {
+				t3.Deskripsi = "Formulir PIR belum di-ACC dan telah memasuki batas waktu kritis (H-7 sebelum toleransi 1 bulan berakhir)"
+			} else {
+				t3.Deskripsi = "Evaluasi PIR belum diselesaikan dan telah memasuki periode batas waktu kritis (H-7)"
+			}
+		}
+	} else {
+		// Notifikasi sudah muncul, status menjadi pending
+		t3.Status = "pending"
+		if hasPIRForm {
+			t3.Deskripsi = "Formulir & survei PIR telah diisi, menunggu persetujuan / ACC penilai"
+		} else {
+			t3.Deskripsi = "Notifikasi evaluasi telah terbit, pengisian formulir & pelaksanaan PIR sedang berjalan"
+		}
 	}
 
 	// 4. Laporan PIR (Format PDF Resmi + Upload Bukti TTD)

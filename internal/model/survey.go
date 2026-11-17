@@ -8,6 +8,7 @@ type SurveyPertanyaan struct {
 	Pertanyaan  string         `json:"pertanyaan"`
 	Tipe        string         `json:"tipe"` // 'skala', 'teks', 'pilihan'
 	Urutan      int            `json:"urutan"`
+	Kategori    string         `json:"kategori,omitempty"`
 	CreatedAt   time.Time      `json:"created_at"`
 	Jawaban     *SurveyJawaban `json:"jawaban,omitempty"`
 }
@@ -25,6 +26,7 @@ type SurveyItemInput struct {
 	Pertanyaan   string  `json:"pertanyaan"`
 	Tipe         string  `json:"tipe"` // 'skala', 'teks', 'pilihan'
 	Urutan       int     `json:"urutan"`
+	Kategori     string  `json:"kategori,omitempty"`
 	JawabanTeks  *string `json:"jawaban_teks,omitempty"`
 	JawabanAngka *int    `json:"jawaban_angka,omitempty"`
 }
@@ -38,6 +40,7 @@ type PublicSurveyQuestion struct {
 	Pertanyaan string `json:"pertanyaan"`
 	Tipe       string `json:"tipe"` // 'skala', 'teks', 'pilihan'
 	Urutan     int    `json:"urutan"`
+	Kategori   string `json:"kategori,omitempty"`
 }
 
 type PublicSurveyResponse struct {
@@ -63,6 +66,7 @@ type SurveyJawabanItem struct {
 
 type PublicSubmitSurveyRequest struct {
 	NamaResponden      string              `json:"nama_responden"`
+	NoBadge            string              `json:"no_badge,omitempty"`
 	JabatanResponden   string              `json:"jabatan_responden,omitempty"`
 	UnitKerjaResponden string              `json:"unit_kerja_responden,omitempty"`
 	Kepuasan           int                 `json:"kepuasan"`          // Skala 1-5
@@ -85,6 +89,7 @@ type RespondenDetail struct {
 	ID               string    `json:"id"`
 	PIRFormID        string    `json:"pir_form_id"`
 	Nama             string    `json:"nama"`
+	NoBadge          string    `json:"no_badge,omitempty"`
 	Jabatan          string    `json:"jabatan"`
 	UnitKerja        string    `json:"unit_kerja"`
 	Kepuasan         int       `json:"kepuasan"`

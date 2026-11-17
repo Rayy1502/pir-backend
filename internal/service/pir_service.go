@@ -104,3 +104,11 @@ func (s *PIRService) DeleteDokumentasi(ctx context.Context, id string) error {
 	return s.Repo.DeleteDokumentasi(ctx, id)
 }
 
+func (s *PIRService) UpdateDokumentasi(ctx context.Context, id, keterangan string) error {
+	if id == "" {
+		return errors.New("id tidak boleh kosong")
+	}
+	return s.Repo.UpdateDokumentasiKeterangan(ctx, id, keterangan)
+}
+
+

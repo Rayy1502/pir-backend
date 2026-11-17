@@ -41,11 +41,6 @@ func (r *LaporanRepository) Create(ctx context.Context, req *model.CreateLaporan
 	}
 	defer tx.Rollback()
 
-	nomorPIR, err := r.GenerateNomorPIR(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	tglLaporan := req.TanggalLaporan
 	if tglLaporan == "" {
 		tglLaporan = time.Now().Format("2006-01-02")
@@ -56,35 +51,88 @@ func (r *LaporanRepository) Create(ctx context.Context, req *model.CreateLaporan
 		pembuatVal = pembuatID
 	}
 
-	query := `
-		INSERT INTO laporan_pir (
-			nomor_pir, proyek_id, pir_form_id, ringkasan,
-			kepuasan, kesesuaian_tujuan, rekomendasi,
-			tanggal_laporan, pembuat_id
-		)
-		OUTPUT INSERTED.id, INSERTED.created_at
-		VALUES (
-			@nomor_pir, @proyek_id, @pir_form_id, @ringkasan,
-			@kepuasan, @kesesuaian_tujuan, @rekomendasi,
-			@tanggal_laporan, @pembuat_id
-		)
-	`
+	// 1. Cek apakah laporan untuk pir_form_id atau proyek_id ini sudah ada sebelumnya
+	var existingID mssql.UniqueIdentifier
+	var existingNomor string
+	var existingCreatedAt time.Time
+	errCheck := tx.QueryRowContext(ctx, `
+		SELECT TOP 1 id, nomor_pir, created_at
+		FROM laporan_pir
+		WHERE (pir_form_id = @pir_form_id OR proyek_id = @proyek_id)
+		ORDER BY created_at DESC
+	`, sql.Named("pir_form_id", req.PIRFormID), sql.Named("proyek_id", req.ProyekID)).Scan(&existingID, &existingNomor, &existingCreatedAt)
+
 	var lapID mssql.UniqueIdentifier
 	var createdAt time.Time
+	var nomorPIR string
 
-	err = tx.QueryRowContext(ctx, query,
-		sql.Named("nomor_pir", nomorPIR),
-		sql.Named("proyek_id", req.ProyekID),
-		sql.Named("pir_form_id", req.PIRFormID),
-		sql.Named("ringkasan", req.Ringkasan),
-		sql.Named("kepuasan", req.Kepuasan),
-		sql.Named("kesesuaian_tujuan", req.KesesuaianTujuan),
-		sql.Named("rekomendasi", req.Rekomendasi),
-		sql.Named("tanggal_laporan", tglLaporan),
-		sql.Named("pembuat_id", pembuatVal),
-	).Scan(&lapID, &createdAt)
-	if err != nil {
-		return nil, err
+	if errCheck == nil {
+		// Update laporan yang sudah ada (tidak membuat duplikat & nomor PIR tetap sama)
+		lapID = existingID
+		nomorPIR = existingNomor
+		createdAt = existingCreatedAt
+
+		updateQuery := `
+			UPDATE laporan_pir
+			SET ringkasan = @ringkasan,
+			    kepuasan = @kepuasan,
+			    kesesuaian_tujuan = @kesesuaian_tujuan,
+			    rekomendasi = @rekomendasi,
+			    tanggal_laporan = @tanggal_laporan,
+			    pembuat_id = ISNULL(@pembuat_id, pembuat_id),
+			    updated_at = SYSUTCDATETIME()
+			WHERE id = @id
+		`
+		_, err = tx.ExecContext(ctx, updateQuery,
+			sql.Named("ringkasan", req.Ringkasan),
+			sql.Named("kepuasan", req.Kepuasan),
+			sql.Named("kesesuaian_tujuan", req.KesesuaianTujuan),
+			sql.Named("rekomendasi", req.Rekomendasi),
+			sql.Named("tanggal_laporan", tglLaporan),
+			sql.Named("pembuat_id", pembuatVal),
+			sql.Named("id", lapID),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Hapus temuan lama sebelum insert temuan terbaru
+		_, _ = tx.ExecContext(ctx, `DELETE FROM laporan_temuan WHERE laporan_id = @id`, sql.Named("id", lapID.String()))
+	} else {
+		// Buat laporan baru & generate nomor PIR baru
+		newNomor, errGen := r.GenerateNomorPIR(ctx)
+		if errGen != nil {
+			return nil, errGen
+		}
+		nomorPIR = newNomor
+
+		query := `
+			INSERT INTO laporan_pir (
+				nomor_pir, proyek_id, pir_form_id, ringkasan,
+				kepuasan, kesesuaian_tujuan, rekomendasi,
+				tanggal_laporan, pembuat_id
+			)
+			OUTPUT INSERTED.id, INSERTED.created_at
+			VALUES (
+				@nomor_pir, @proyek_id, @pir_form_id, @ringkasan,
+				@kepuasan, @kesesuaian_tujuan, @rekomendasi,
+				@tanggal_laporan, @pembuat_id
+			)
+		`
+		err = tx.QueryRowContext(ctx, query,
+			sql.Named("nomor_pir", nomorPIR),
+			sql.Named("proyek_id", req.ProyekID),
+			sql.Named("pir_form_id", req.PIRFormID),
+			sql.Named("ringkasan", req.Ringkasan),
+			sql.Named("kepuasan", req.Kepuasan),
+			sql.Named("kesesuaian_tujuan", req.KesesuaianTujuan),
+			sql.Named("rekomendasi", req.Rekomendasi),
+			sql.Named("tanggal_laporan", tglLaporan),
+			sql.Named("pembuat_id", pembuatVal),
+		).Scan(&lapID, &createdAt)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	lapIDStr := lapID.String()
@@ -202,7 +250,19 @@ func (r *LaporanRepository) GetByID(ctx context.Context, id string) (*model.Lapo
 			l.pembuat_id, ISNULL(u.nama, 'Staff TI') AS pembuat_nama, l.created_at,
 			l.file_ttd_url, l.file_ttd_nama, ISNULL(l.status_laporan, 'draft'), l.signed_at,
 			p.id, p.nama_kegiatan, p.kategori, p.unit_kerja, ISNULL(p.vendor, ''), p.tanggal_go_live, p.status_pir,
-			f.metode, f.tujuan_awal
+			f.metode, f.tujuan_awal,
+			ISNULL(f.catatan_kondisi, '') AS catatan_kondisi,
+			ISNULL(f.nama_narasumber, '') AS nama_narasumber,
+			ISNULL(f.jabatan_narasumber, '') AS jabatan_narasumber,
+			ISNULL(f.daftar_pertanyaan, '') AS daftar_pertanyaan,
+			ISNULL(f.kesimpulan_wawancara, '') AS kesimpulan_wawancara,
+			ISNULL(f.responden, '') AS responden,
+			ISNULL(f.disiapkan_oleh, 'Budi Pratama') AS disiapkan_oleh,
+			ISNULL(f.disiapkan_jabatan, 'TKNO Perencanaan & Tata Kelola TI') AS disiapkan_jabatan,
+			ISNULL(f.direview_oleh, 'Rahmat Hidayat') AS direview_oleh,
+			ISNULL(f.direview_jabatan, 'Senior Engineer Perencanaan & Tata Kelola TI') AS direview_jabatan,
+			ISNULL(f.disetujui_oleh, 'Ahmad Fauzi') AS disetujui_oleh,
+			ISNULL(f.disetujui_jabatan, 'VP Departemen Teknologi Informasi PSP') AS disetujui_jabatan
 		FROM laporan_pir l
 		JOIN proyek p ON l.proyek_id = p.id
 		LEFT JOIN pir_form f ON l.pir_form_id = f.id
@@ -218,6 +278,8 @@ func (r *LaporanRepository) GetByID(ctx context.Context, id string) (*model.Lapo
 	var p model.Proyek
 	var tglLap time.Time
 	var metode, tujuanAwal sql.NullString
+	var catatanKondisi, namaNarasumber, jabatanNarasumber, daftarPertanyaan, kesimpulanWawancara, responden string
+	var disiapkanOleh, disiapkanJabatan, direviewOleh, direviewJabatan, disetujuiOleh, disetujuiJabatan string
 
 	err := r.DB.QueryRowContext(ctx, query, sql.Named("id", id)).Scan(
 		&lapID, &lap.NomorPIR, &prID, &pfID, &lap.Ringkasan,
@@ -226,6 +288,8 @@ func (r *LaporanRepository) GetByID(ctx context.Context, id string) (*model.Lapo
 		&fileTTDURL, &fileTTDNama, &statusLaporan, &signedAt,
 		&pID, &p.NamaKegiatan, &p.Kategori, &p.UnitKerja, &p.Vendor, &p.TanggalGoLive, &p.StatusPIR,
 		&metode, &tujuanAwal,
+		&catatanKondisi, &namaNarasumber, &jabatanNarasumber, &daftarPertanyaan, &kesimpulanWawancara, &responden,
+		&disiapkanOleh, &disiapkanJabatan, &direviewOleh, &direviewJabatan, &disetujuiOleh, &disetujuiJabatan,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -264,6 +328,18 @@ func (r *LaporanRepository) GetByID(ctx context.Context, id string) (*model.Lapo
 	if tujuanAwal.Valid {
 		pirForm.TujuanAwal = tujuanAwal.String
 	}
+	pirForm.CatatanKondisi = catatanKondisi
+	pirForm.NamaNarasumber = namaNarasumber
+	pirForm.JabatanNarasumber = jabatanNarasumber
+	pirForm.DaftarPertanyaan = daftarPertanyaan
+	pirForm.KesimpulanWawancara = kesimpulanWawancara
+	pirForm.Responden = responden
+	pirForm.DisiapkanOleh = disiapkanOleh
+	pirForm.DisiapkanJabatan = disiapkanJabatan
+	pirForm.DireviewOleh = direviewOleh
+	pirForm.DireviewJabatan = direviewJabatan
+	pirForm.DisetujuiOleh = disetujuiOleh
+	pirForm.DisetujuiJabatan = disetujuiJabatan
 	lap.PIRForm = &pirForm
 
 	// Load temuan
@@ -313,9 +389,24 @@ func (r *LaporanRepository) GetAll(ctx context.Context, proyekID, search string)
 			l.kepuasan, l.kesesuaian_tujuan, l.rekomendasi, l.tanggal_laporan,
 			ISNULL(u.nama, 'Staff TI') AS pembuat_nama, l.created_at,
 			l.file_ttd_url, ISNULL(l.status_laporan, 'draft'),
-			p.nama_kegiatan, p.kategori, p.unit_kerja, ISNULL(p.vendor, ''), p.tanggal_go_live, p.status_pir
+			p.nama_kegiatan, p.kategori, p.unit_kerja, ISNULL(p.vendor, ''), p.tanggal_go_live, p.status_pir,
+			ISNULL(f.metode, 'survey') AS metode,
+			ISNULL(f.tujuan_awal, '') AS tujuan_awal,
+			ISNULL(f.catatan_kondisi, '') AS catatan_kondisi,
+			ISNULL(f.nama_narasumber, '') AS nama_narasumber,
+			ISNULL(f.jabatan_narasumber, '') AS jabatan_narasumber,
+			ISNULL(f.daftar_pertanyaan, '') AS daftar_pertanyaan,
+			ISNULL(f.kesimpulan_wawancara, '') AS kesimpulan_wawancara,
+			ISNULL(f.responden, '') AS responden,
+			ISNULL(f.disiapkan_oleh, 'Budi Pratama') AS disiapkan_oleh,
+			ISNULL(f.disiapkan_jabatan, 'TKNO Perencanaan & Tata Kelola TI') AS disiapkan_jabatan,
+			ISNULL(f.direview_oleh, 'Rahmat Hidayat') AS direview_oleh,
+			ISNULL(f.direview_jabatan, 'Senior Engineer Perencanaan & Tata Kelola TI') AS direview_jabatan,
+			ISNULL(f.disetujui_oleh, 'Ahmad Fauzi') AS disetujui_oleh,
+			ISNULL(f.disetujui_jabatan, 'VP Departemen Teknologi Informasi PSP') AS disetujui_jabatan
 		FROM laporan_pir l
 		JOIN proyek p ON l.proyek_id = p.id
+		LEFT JOIN pir_form f ON l.pir_form_id = f.id
 		LEFT JOIN users u ON l.pembuat_id = u.id
 		WHERE 1=1
 	`
@@ -336,6 +427,7 @@ func (r *LaporanRepository) GetAll(ctx context.Context, proyekID, search string)
 	}
 	defer rows.Close()
 
+	seenProyek := make(map[string]bool)
 	list := make([]model.LaporanPIR, 0)
 	for rows.Next() {
 		var lap model.LaporanPIR
@@ -344,6 +436,8 @@ func (r *LaporanRepository) GetAll(ctx context.Context, proyekID, search string)
 		var p model.Proyek
 		var fileTTDURL sql.NullString
 		var statusLaporan string
+		var metode, tujuanAwal, catatanKondisi, namaNarasumber, jabatanNarasumber, daftarPertanyaan, kesimpulanWawancara, responden string
+		var disiapkanOleh, disiapkanJabatan, direviewOleh, direviewJabatan, disetujuiOleh, disetujuiJabatan string
 
 		err := rows.Scan(
 			&lapID, &lap.NomorPIR, &prID, &pfID, &lap.Ringkasan,
@@ -351,6 +445,8 @@ func (r *LaporanRepository) GetAll(ctx context.Context, proyekID, search string)
 			&lap.PembuatNama, &lap.CreatedAt,
 			&fileTTDURL, &statusLaporan,
 			&p.NamaKegiatan, &p.Kategori, &p.UnitKerja, &p.Vendor, &p.TanggalGoLive, &p.StatusPIR,
+			&metode, &tujuanAwal, &catatanKondisi, &namaNarasumber, &jabatanNarasumber, &daftarPertanyaan, &kesimpulanWawancara, &responden,
+			&disiapkanOleh, &disiapkanJabatan, &direviewOleh, &direviewJabatan, &disetujuiOleh, &disetujuiJabatan,
 		)
 		if err != nil {
 			return nil, err
@@ -358,6 +454,13 @@ func (r *LaporanRepository) GetAll(ctx context.Context, proyekID, search string)
 
 		lap.ID = lapID.String()
 		lap.ProyekID = prID.String()
+
+		// Hindari duplikasi baris laporan untuk proyek yang sama
+		if seenProyek[lap.ProyekID] {
+			continue
+		}
+		seenProyek[lap.ProyekID] = true
+
 		lap.PIRFormID = pfID.String()
 		lap.TanggalLaporan = tglLap.Format("2006-01-02")
 		lap.StatusLaporan = statusLaporan
@@ -366,6 +469,25 @@ func (r *LaporanRepository) GetAll(ctx context.Context, proyekID, search string)
 		}
 		p.ID = lap.ProyekID
 		lap.Proyek = &p
+
+		lap.PIRForm = &model.PIRForm{
+			ID:                  lap.PIRFormID,
+			ProyekID:            lap.ProyekID,
+			Metode:              metode,
+			TujuanAwal:          tujuanAwal,
+			CatatanKondisi:      catatanKondisi,
+			NamaNarasumber:      namaNarasumber,
+			JabatanNarasumber:   jabatanNarasumber,
+			DaftarPertanyaan:    daftarPertanyaan,
+			KesimpulanWawancara: kesimpulanWawancara,
+			Responden:           responden,
+			DisiapkanOleh:       disiapkanOleh,
+			DisiapkanJabatan:    disiapkanJabatan,
+			DireviewOleh:        direviewOleh,
+			DireviewJabatan:     direviewJabatan,
+			DisetujuiOleh:       disetujuiOleh,
+			DisetujuiJabatan:    disetujuiJabatan,
+		}
 
 		list = append(list, lap)
 	}

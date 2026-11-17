@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"math"
 	"strings"
 
@@ -19,33 +18,110 @@ func NewSurveyRepository(db *sql.DB) *SurveyRepository {
 	return &SurveyRepository{DB: db}
 }
 
-// EnsureDefaultQuestions memastikan pertanyaan standar 1-4 ada untuk suatu PIR Form jika belum dibuat
+type StandardQuestionItem struct {
+	Pertanyaan string
+	Tipe       string
+	Urutan     int
+	Kategori   string
+}
+
+func GetStandardQuestions() []StandardQuestionItem {
+	return []StandardQuestionItem{
+		// 1. Kualitas Sistem & Antarmuka
+		{"Saya bisa menemukan menu atau fitur yang saya cari dengan cepat, tanpa coba-coba atau bertanya ke rekan", "skala", 1, "Kualitas Sistem & Antarmuka"},
+		{"Proses di aplikasi (misal menyimpan, mencari) berjalan cepat sehingga tidak mengganggu pekerjaan saya", "skala", 2, "Kualitas Sistem & Antarmuka"},
+		{"Aplikasi ini jarang error, atau tidak bisa diakses pada jam kerja", "skala", 3, "Keandalan Sistem & Ketersediaan"},
+		{"Pada jam kerja, saya dapat tersambung ke aplikasi lewat jaringan kantor setiap kali saya membutuhkannya", "skala", 4, "Akses & Jaringan Kantor"},
+		{"Koneksi jaringan jarang terputus saat saya sedang mengisi, menyimpan, atau mengirim data di aplikasi", "skala", 5, "Akses & Jaringan Kantor"},
+
+		// 2. Kualitas Data & Informasi
+		{"Data yang saya gunakan dalam pekerjaan (angka, status, atau laporan) akurat dan sesuai dengan kondisi sebenarnya", "skala", 6, "Kualitas Data & Informasi"},
+		{"Data yang saya butuhkan selalu terbaru, tanpa keterlambatan pembaruan yang mengganggu pekerjaan", "skala", 7, "Kualitas Data & Informasi"},
+		{"Informasinya cukup lengkap sehingga saya tidak perlu mencari ke sumber lain untuk menyelesaikan tugas", "skala", 8, "Kualitas Data & Informasi"},
+		{"Informasi di layar bisa langsung saya pahami tanpa perlu penjelasan tambahan", "skala", 9, "Kualitas Data & Informasi"},
+
+		// 3. Layanan & Dukungan TI
+		{"Saat saya melaporkan kendala, tim IT/helpdesk menanggapi dalam waktu yang wajar", "skala", 10, "Layanan & Dukungan TI"},
+		{"Solusi dari tim IT/helpdesk benar-benar menyelesaikan masalah saya, bukan solusi sementara atau masalah yang berulang", "skala", 11, "Layanan & Dukungan TI"},
+		{"Tim IT/helpdesk memahami kebutuhan kerja saya ketika saya meminta bantuan, pelatihan atau perubahan fitur", "skala", 12, "Layanan & Dukungan TI"},
+
+		// 4. Adopsi & Kepuasan Pengguna
+		{"Pekerjaan inti saya, saya kerjakan melalui aplikasi ini secara rutin", "skala", 13, "Adopsi & Penggunaan Sistem"},
+		{"Saya memakai aplikasi ini karena memang membantu pekerjaan, bukan sekadar karena diwajibkan", "skala", 14, "Adopsi & Penggunaan Sistem"},
+		{"Secara keseluruhan, saya puas dengan pengalaman memakai aplikasi ini dalam pekerjaan sehari-hari", "skala", 15, "Kepuasan Pengguna Keseluruhan"},
+		{"Saya puas dengan fitur utama yang tersedia", "skala", 16, "Kepuasan Pengguna Keseluruhan"},
+		{"Pengalaman saya memakai aplikasi ini sesuai dengan harapan saya sebelum mulai menggunakannya", "skala", 17, "Kesesuaian Ekspektasi Awal"},
+
+		// 5. Dampak Kinerja Pekerjaan
+		{"Aplikasi ini mempersingkat waktu penyelesaian tugas saya dibandingkan cara sebelumnya", "skala", 18, "Dampak Kinerja & Efisiensi"},
+		{"Aplikasi ini mengurangi pekerjaan berulang atau kesalahan input yang sebelumnya sering terjadi", "skala", 19, "Dampak Kinerja & Efisiensi"},
+		{"Informasi dari aplikasi ini membantu saya mengambil keputusan atau tindakan dibandingkan sebelum ada aplikasi", "skala", 20, "Dampak Kinerja & Efisiensi"},
+
+		// 6. Evaluasi Dampak Manfaat (Pilihan Persentase)
+		{"Manfaat Business (Peningkatan pendapatan, efisiensi biaya operasional)", "pilihan", 21, "Evaluasi Manfaat Implementasi"},
+		{"Manfaat Process (Efisiensi proses bisnis, mempercepat penyelesaian pekerjaan)", "pilihan", 22, "Evaluasi Manfaat Implementasi"},
+		{"Manfaat Regulatory (Pemenuhan aturan dan kepatuhan menjadi lebih baik)", "pilihan", 23, "Evaluasi Manfaat Implementasi"},
+
+		// 7. Masukan Kualitatif & Rekomendasi
+		{"Apa yang berubah dalam cara Anda bekerja dibandingkan sebelumnya (ditambah, dihilangkan, atau berubah caranya)? Sebutkan perubahan yang paling Anda rasakan (yang lebih baik maupun yang lebih buruk), dan hal dari cara kerja lama yang masih belum tergantikan", "teks", 24, "Evaluasi Kualitatif & Perubahan"},
+		{"Tuliskan kebutuhan pengembangan, perbaikan, atau peningkatan modul. Jika tidak ada, tuliskan 'Tidak ada'", "teks", 25, "Rekomendasi Peningkatan Modul"},
+	}
+}
+
+// EnsureDefaultQuestions memastikan pertanyaan standar lengkap 1-25 ada HANYA untuk metode 'survey' jika belum dibuat
 func (r *SurveyRepository) EnsureDefaultQuestions(ctx context.Context, pirFormID string) error {
-	var count int
-	err := r.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM survey_pertanyaan WHERE pir_form_id = @id", sql.Named("id", pirFormID)).Scan(&count)
+	// Cek metode PIR Form terlebih dahulu. Hanya metode 'survey' yang memiliki kuesioner pertanyaan!
+	var metode string
+	err := r.DB.QueryRowContext(ctx, "SELECT ISNULL(metode, 'survey') FROM pir_form WHERE id = @id", sql.Named("id", pirFormID)).Scan(&metode)
 	if err != nil {
 		return err
 	}
-	if count > 0 {
+
+	metodeClean := strings.ToLower(strings.TrimSpace(metode))
+	if metodeClean != "survey" {
+		// Jika bukan metode survey (observasi / wawancara), bersihkan pertanyaan survey yang mungkin terlanjur terbuat tanpa respon
+		var ansCount int
+		_ = r.DB.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM survey_jawaban sj
+			JOIN survey_pertanyaan sp ON sj.pertanyaan_id = sp.id
+			WHERE sp.pir_form_id = @id
+		`, sql.Named("id", pirFormID)).Scan(&ansCount)
+		if ansCount == 0 {
+			_, _ = r.DB.ExecContext(ctx, "DELETE FROM survey_pertanyaan WHERE pir_form_id = @id", sql.Named("id", pirFormID))
+		}
 		return nil
 	}
 
-	standards := []struct {
-		Pertanyaan string
-		Tipe       string
-		Urutan     int
-	}{
-		{"Tingkat Kepuasan Pengguna terhadap Sistem", "skala", 1},
-		{"Kesesuaian Hasil Implementasi dengan Tujuan Awal", "skala", 2},
-		{"Kendala Operasional / Teknis yang Dihadapi", "teks", 3},
-		{"Saran Perbaikan dan Tindak Lanjut Sistem", "pilihan", 4},
+	var count int
+	err = r.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM survey_pertanyaan WHERE pir_form_id = @id", sql.Named("id", pirFormID)).Scan(&count)
+	if err != nil {
+		return err
 	}
+	if count >= 20 {
+		return nil
+	}
+	if count > 0 && count < 20 {
+		// Cek apakah sudah ada respon
+		var ansCount int
+		_ = r.DB.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM survey_jawaban sj
+			JOIN survey_pertanyaan sp ON sj.pertanyaan_id = sp.id
+			WHERE sp.pir_form_id = @id
+		`, sql.Named("id", pirFormID)).Scan(&ansCount)
+		if ansCount > 0 {
+			return nil
+		}
+		// Hapus pertanyaan placeholder lama yang belum berespon agar digantikan 25 butir lengkap
+		_, _ = r.DB.ExecContext(ctx, "DELETE FROM survey_pertanyaan WHERE pir_form_id = @id", sql.Named("id", pirFormID))
+	}
+
+	standards := GetStandardQuestions()
 
 	for _, s := range standards {
 		_, err := r.DB.ExecContext(ctx, `
-			INSERT INTO survey_pertanyaan (pir_form_id, pertanyaan, tipe, urutan)
-			VALUES (@id, @pertanyaan, @tipe, @urutan)
-		`, sql.Named("id", pirFormID), sql.Named("pertanyaan", s.Pertanyaan), sql.Named("tipe", s.Tipe), sql.Named("urutan", s.Urutan))
+			INSERT INTO survey_pertanyaan (pir_form_id, pertanyaan, tipe, urutan, kategori)
+			VALUES (@id, @pertanyaan, @tipe, @urutan, @kategori)
+		`, sql.Named("id", pirFormID), sql.Named("pertanyaan", s.Pertanyaan), sql.Named("tipe", s.Tipe), sql.Named("urutan", s.Urutan), sql.Named("kategori", s.Kategori))
 		if err != nil {
 			return err
 		}
@@ -96,13 +172,20 @@ func (r *SurveyRepository) SaveQuestions(ctx context.Context, pirFormID string, 
 		return err
 	}
 
-	// 2. Jika input kosong, berikan 4 pertanyaan default
-	if len(questions) == 0 {
-		questions = []model.SurveyItemInput{
-			{Pertanyaan: "Tingkat Kepuasan Pengguna terhadap Sistem", Tipe: "skala", Urutan: 1},
-			{Pertanyaan: "Kesesuaian Hasil Implementasi dengan Tujuan Awal", Tipe: "skala", Urutan: 2},
-			{Pertanyaan: "Kendala Operasional / Teknis yang Dihadapi", Tipe: "teks", Urutan: 3},
-			{Pertanyaan: "Saran Perbaikan dan Tindak Lanjut Sistem", Tipe: "teks", Urutan: 4},
+	// Cek metode PIR Form
+	var metode string
+	_ = tx.QueryRowContext(ctx, "SELECT ISNULL(metode, 'survey') FROM pir_form WHERE id = @id", sql.Named("id", pirFormID)).Scan(&metode)
+	metodeClean := strings.ToLower(strings.TrimSpace(metode))
+
+	// 2. Jika input kosong dan metode adalah 'survey', berikan pertanyaan default lengkap
+	if len(questions) == 0 && metodeClean == "survey" {
+		for _, std := range GetStandardQuestions() {
+			questions = append(questions, model.SurveyItemInput{
+				Pertanyaan: std.Pertanyaan,
+				Tipe:       std.Tipe,
+				Urutan:     std.Urutan,
+				Kategori:   std.Kategori,
+			})
 		}
 	}
 
@@ -136,9 +219,9 @@ func (r *SurveyRepository) SaveQuestions(ctx context.Context, pirFormID string, 
 			keptIDs[targetID] = true
 			_, err := tx.ExecContext(ctx, `
 				UPDATE survey_pertanyaan 
-				SET pertanyaan = @pertanyaan, tipe = @tipe, urutan = @urutan
+				SET pertanyaan = @pertanyaan, tipe = @tipe, urutan = @urutan, kategori = @kategori
 				WHERE id = @id AND pir_form_id = @pir_id
-			`, sql.Named("pertanyaan", q.Pertanyaan), sql.Named("tipe", tipe), sql.Named("urutan", urutan), sql.Named("id", targetID), sql.Named("pir_id", pirFormID))
+			`, sql.Named("pertanyaan", q.Pertanyaan), sql.Named("tipe", tipe), sql.Named("urutan", urutan), sql.Named("kategori", q.Kategori), sql.Named("id", targetID), sql.Named("pir_id", pirFormID))
 			if err != nil {
 				return err
 			}
@@ -146,10 +229,10 @@ func (r *SurveyRepository) SaveQuestions(ctx context.Context, pirFormID string, 
 			// Insert pertanyaan baru
 			var newID mssql.UniqueIdentifier
 			err := tx.QueryRowContext(ctx, `
-				INSERT INTO survey_pertanyaan (pir_form_id, pertanyaan, tipe, urutan)
+				INSERT INTO survey_pertanyaan (pir_form_id, pertanyaan, tipe, urutan, kategori)
 				OUTPUT INSERTED.id
-				VALUES (@pir_id, @pertanyaan, @tipe, @urutan)
-			`, sql.Named("pir_id", pirFormID), sql.Named("pertanyaan", q.Pertanyaan), sql.Named("tipe", tipe), sql.Named("urutan", urutan)).Scan(&newID)
+				VALUES (@pir_id, @pertanyaan, @tipe, @urutan, @kategori)
+			`, sql.Named("pir_id", pirFormID), sql.Named("pertanyaan", q.Pertanyaan), sql.Named("tipe", tipe), sql.Named("urutan", urutan), sql.Named("kategori", q.Kategori)).Scan(&newID)
 			if err != nil {
 				return err
 			}
@@ -209,7 +292,7 @@ func (r *SurveyRepository) GetPublicSurvey(ctx context.Context, pirFormID string
 
 	// Ambil pertanyaan
 	rows, err := r.DB.QueryContext(ctx, `
-		SELECT id, pertanyaan, tipe, urutan
+		SELECT id, pertanyaan, tipe, urutan, ISNULL(kategori, '')
 		FROM survey_pertanyaan
 		WHERE pir_form_id = @id
 		ORDER BY urutan ASC
@@ -224,7 +307,7 @@ func (r *SurveyRepository) GetPublicSurvey(ctx context.Context, pirFormID string
 	for rows.Next() {
 		var q model.PublicSurveyQuestion
 		var qID mssql.UniqueIdentifier
-		if err := rows.Scan(&qID, &q.Pertanyaan, &q.Tipe, &q.Urutan); err == nil {
+		if err := rows.Scan(&qID, &q.Pertanyaan, &q.Tipe, &q.Urutan, &q.Kategori); err == nil {
 			if !seenPublicUrutan[q.Urutan] {
 				seenPublicUrutan[q.Urutan] = true
 				q.ID = qID.String()
@@ -250,11 +333,12 @@ func (r *SurveyRepository) PublicSubmit(ctx context.Context, pirFormID string, r
 	// 1. Simpan responden baru ke tabel survey_responden
 	var respID mssql.UniqueIdentifier
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO survey_responden (pir_form_id, nama, jabatan, unit_kerja, kepuasan, kesesuaian_tujuan, kendala, saran)
+		INSERT INTO survey_responden (pir_form_id, nama, no_badge, jabatan, unit_kerja, kepuasan, kesesuaian_tujuan, kendala, saran)
 		OUTPUT INSERTED.id
-		VALUES (@pir_id, @nama, @jabatan, @unit_kerja, @kepuasan, @kesesuaian, @kendala, @saran)
+		VALUES (@pir_id, @nama, @no_badge, @jabatan, @unit_kerja, @kepuasan, @kesesuaian, @kendala, @saran)
 	`, sql.Named("pir_id", pirFormID),
 		sql.Named("nama", strings.TrimSpace(req.NamaResponden)),
+		sql.Named("no_badge", strings.TrimSpace(req.NoBadge)),
 		sql.Named("jabatan", strings.TrimSpace(req.JabatanResponden)),
 		sql.Named("unit_kerja", strings.TrimSpace(req.UnitKerjaResponden)),
 		sql.Named("kepuasan", req.Kepuasan),
@@ -273,6 +357,7 @@ func (r *SurveyRepository) PublicSubmit(ctx context.Context, pirFormID string, r
 		Tipe   string
 	}
 	qMap := make(map[int]QItem)
+	qByID := make(map[string]QItem)
 
 	rows, err := tx.QueryContext(ctx, `
 		SELECT id, urutan, tipe FROM survey_pertanyaan WHERE pir_form_id = @id ORDER BY urutan ASC
@@ -287,6 +372,7 @@ func (r *SurveyRepository) PublicSubmit(ctx context.Context, pirFormID string, r
 		if err := rows.Scan(&id, &urutan, &tipe); err == nil {
 			item := QItem{ID: id.String(), Urutan: urutan, Tipe: tipe}
 			qMap[urutan] = item
+			qByID[id.String()] = item
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -312,28 +398,28 @@ func (r *SurveyRepository) PublicSubmit(ctx context.Context, pirFormID string, r
 		return err
 	}
 
-	// Jawaban 1: Kepuasan
-	if q, ok := qMap[1]; ok {
-		_ = insertAnswer(q.ID, nil, &req.Kepuasan)
-	}
-	// Jawaban 2: Kesesuaian
-	if q, ok := qMap[2]; ok {
-		_ = insertAnswer(q.ID, nil, &req.KesesuaianTujuan)
-	}
-	// Jawaban 3: Kendala
-	if q, ok := qMap[3]; ok {
-		_ = insertAnswer(q.ID, &req.Kendala, nil)
-	}
-	// Jawaban 4: Saran
-	if q, ok := qMap[4]; ok {
-		_ = insertAnswer(q.ID, &req.Saran, nil)
-	}
+	savedQIDs := make(map[string]bool)
 
-	// Jawaban Lain (Custom Pertanyaan)
+	// Simpan seluruh butir jawaban dari kuesioner
 	for _, jl := range req.JawabanLain {
 		if jl.PertanyaanID != "" {
 			_ = insertAnswer(jl.PertanyaanID, jl.JawabanTeks, jl.JawabanAngka)
+			savedQIDs[jl.PertanyaanID] = true
 		}
+	}
+
+	// Fallback untuk backward compatibility jika ada pertanyaan 1-4 yang belum tersimpan
+	if q, ok := qMap[1]; ok && !savedQIDs[q.ID] {
+		_ = insertAnswer(q.ID, nil, &req.Kepuasan)
+	}
+	if q, ok := qMap[2]; ok && !savedQIDs[q.ID] {
+		_ = insertAnswer(q.ID, nil, &req.KesesuaianTujuan)
+	}
+	if q, ok := qMap[3]; ok && !savedQIDs[q.ID] && req.Kendala != "" {
+		_ = insertAnswer(q.ID, &req.Kendala, nil)
+	}
+	if q, ok := qMap[4]; ok && !savedQIDs[q.ID] && req.Saran != "" {
+		_ = insertAnswer(q.ID, &req.Saran, nil)
 	}
 
 	// 3. Update pir_form status jika draft
@@ -356,7 +442,7 @@ func (r *SurveyRepository) GetByPIRFormID(ctx context.Context, pirFormID string)
 
 	queryProyek := `
 		SELECT 
-			pf.id, pf.proyek_id, ISNULL(pf.responden, ''),
+			pf.id, pf.proyek_id, ISNULL(pf.responden, ''), ISNULL(pf.metode, 'survey'),
 			p.nama_kegiatan, p.unit_kerja, ISNULL(p.vendor, '')
 		FROM pir_form pf
 		JOIN proyek p ON pf.proyek_id = p.id
@@ -364,8 +450,9 @@ func (r *SurveyRepository) GetByPIRFormID(ctx context.Context, pirFormID string)
 	`
 	var resp model.SurveyResponse
 	var pfID, pID mssql.UniqueIdentifier
+	var metode string
 	err := r.DB.QueryRowContext(ctx, queryProyek, sql.Named("pir_id", pirFormID)).Scan(
-		&pfID, &pID, &resp.Responden,
+		&pfID, &pID, &resp.Responden, &metode,
 		&resp.NamaKegiatan, &resp.UnitKerja, &resp.Vendor,
 	)
 	if err != nil {
@@ -378,7 +465,7 @@ func (r *SurveyRepository) GetByPIRFormID(ctx context.Context, pirFormID string)
 
 	// 1. Ambil daftar responden dari tabel survey_responden
 	rowsResp, err := r.DB.QueryContext(ctx, `
-		SELECT id, pir_form_id, nama, ISNULL(jabatan, ''), ISNULL(unit_kerja, ''), kepuasan, kesesuaian_tujuan, ISNULL(kendala, ''), ISNULL(saran, ''), created_at
+		SELECT id, pir_form_id, nama, ISNULL(no_badge, ''), ISNULL(jabatan, ''), ISNULL(unit_kerja, ''), kepuasan, kesesuaian_tujuan, ISNULL(kendala, ''), ISNULL(saran, ''), created_at
 		FROM survey_responden
 		WHERE pir_form_id = @pir_id
 		ORDER BY created_at DESC
@@ -388,7 +475,7 @@ func (r *SurveyRepository) GetByPIRFormID(ctx context.Context, pirFormID string)
 		for rowsResp.Next() {
 			var rd model.RespondenDetail
 			var rdID, formID mssql.UniqueIdentifier
-			if err := rowsResp.Scan(&rdID, &formID, &rd.Nama, &rd.Jabatan, &rd.UnitKerja, &rd.Kepuasan, &rd.KesesuaianTujuan, &rd.Kendala, &rd.Saran, &rd.CreatedAt); err == nil {
+			if err := rowsResp.Scan(&rdID, &formID, &rd.Nama, &rd.NoBadge, &rd.Jabatan, &rd.UnitKerja, &rd.Kepuasan, &rd.KesesuaianTujuan, &rd.Kendala, &rd.Saran, &rd.CreatedAt); err == nil {
 				rd.ID = rdID.String()
 				rd.PIRFormID = formID.String()
 				resp.DaftarResponden = append(resp.DaftarResponden, rd)
@@ -400,32 +487,72 @@ func (r *SurveyRepository) GetByPIRFormID(ctx context.Context, pirFormID string)
 	resp.TotalResponden = len(resp.DaftarResponden)
 	resp.IsSubmitted = (resp.TotalResponden > 0)
 
-	// Hitung rata-rata dan gabungan kendala/saran jika ada responden
-	if resp.TotalResponden > 0 {
+	// Hitung rata-rata dan gabungan kendala/saran TANPA nama responden (dirangkum kolektif)
+	if resp.TotalResponden > 0 && metode != "observasi" && metode != "wawancara" {
 		var sumKepuasan, sumKesesuaian int
 		var listKendala, listSaran []string
+		seenKendala := make(map[string]bool)
+		seenSaran := make(map[string]bool)
+
+		cleanText := func(s string) string {
+			s = strings.TrimSpace(s)
+			// Hapus prefix nama jika tersimpan pola "Nama: Isi" sebelumnya
+			if idx := strings.Index(s, ": "); idx != -1 && idx < 35 {
+				s = strings.TrimSpace(s[idx+2:])
+			}
+			// Hapus karakter bullet atau nomor di awal
+			s = strings.TrimLeft(s, "-*•0123456789. ")
+			return strings.TrimSpace(s)
+		}
+
 		for _, rd := range resp.DaftarResponden {
 			sumKepuasan += rd.Kepuasan
 			sumKesesuaian += rd.KesesuaianTujuan
-			if strings.TrimSpace(rd.Kendala) != "" {
-				listKendala = append(listKendala, fmt.Sprintf("%s: %s", rd.Nama, rd.Kendala))
+
+			if k := cleanText(rd.Kendala); k != "" {
+				key := strings.ToLower(k)
+				if !seenKendala[key] {
+					seenKendala[key] = true
+					listKendala = append(listKendala, k)
+				}
 			}
-			if strings.TrimSpace(rd.Saran) != "" {
-				listSaran = append(listSaran, fmt.Sprintf("%s: %s", rd.Nama, rd.Saran))
+			if s := cleanText(rd.Saran); s != "" {
+				key := strings.ToLower(s)
+				if !seenSaran[key] {
+					seenSaran[key] = true
+					listSaran = append(listSaran, s)
+				}
 			}
 		}
+
 		avgKep := float64(sumKepuasan) / float64(resp.TotalResponden)
 		resp.KepuasanAvg = math.Round(avgKep*10) / 10
 		resp.Kepuasan = int(math.Round(avgKep))
 		resp.KesesuaianTujuan = int(math.Round(float64(sumKesesuaian) / float64(resp.TotalResponden)))
-		resp.Kendala = strings.Join(listKendala, "\n")
-		resp.Saran = strings.Join(listSaran, "\n")
+
+		if len(listKendala) > 0 {
+			resp.Kendala = strings.Join(listKendala, "\n")
+		} else {
+			resp.Kendala = "Tidak ada kendala operasional yang dilaporkan oleh responden."
+		}
+
+		if len(listSaran) > 0 {
+			resp.Saran = strings.Join(listSaran, "\n")
+		} else {
+			resp.Saran = "Seluruh responden menyatakan sistem telah beroperasi secara optimal."
+		}
 	}
 
-	// 2. Ambil pertanyaan
+	// 2. Pertanyaan kuesioner HANYA diambil dan digunakan jika metode adalah 'survey'
+	metodeClean := strings.ToLower(strings.TrimSpace(metode))
+	if metodeClean != "survey" {
+		resp.Pertanyaan = make([]model.SurveyPertanyaan, 0)
+		return &resp, nil
+	}
+
 	query := `
 		SELECT 
-			p.id, p.pir_form_id, p.pertanyaan, p.tipe, p.urutan, p.created_at,
+			p.id, p.pir_form_id, p.pertanyaan, p.tipe, p.urutan, ISNULL(p.kategori, ''), p.created_at,
 			CAST(j.id AS NVARCHAR(36)) AS j_id, j.jawaban_teks, j.jawaban_angka, j.created_at
 		FROM survey_pertanyaan p
 		LEFT JOIN survey_jawaban j ON p.id = j.pertanyaan_id
@@ -449,7 +576,7 @@ func (r *SurveyRepository) GetByPIRFormID(ctx context.Context, pirFormID string)
 		var jCreated sql.NullTime
 
 		err := rows.Scan(
-			&pID, &pfID, &p.Pertanyaan, &p.Tipe, &p.Urutan, &p.CreatedAt,
+			&pID, &pfID, &p.Pertanyaan, &p.Tipe, &p.Urutan, &p.Kategori, &p.CreatedAt,
 			&jID, &jTeks, &jAngka, &jCreated,
 		)
 		if err != nil {
@@ -475,8 +602,8 @@ func (r *SurveyRepository) GetByPIRFormID(ctx context.Context, pirFormID string)
 			}
 			p.Jawaban = &jawaban
 
-			// Fallback kepuasan & saran jika belum ada survey_responden (misal pengisian manual)
-			if resp.TotalResponden == 0 {
+			// Evaluasi teknis observasi & wawancara atau fallback jika survey belum ada responden
+			if resp.TotalResponden == 0 || metode == "observasi" || metode == "wawancara" {
 				resp.IsSubmitted = true
 				switch p.Urutan {
 				case 1:

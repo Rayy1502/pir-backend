@@ -149,6 +149,7 @@ func main() {
 			r.Put("/pir/{id}/approve", pirHandler.Approve)
 			r.Get("/pir/{id}/dokumentasi", pirHandler.GetDokumentasi)
 			r.Post("/pir/{id}/dokumentasi", pirHandler.UploadDokumentasi)
+			r.Put("/pir/dokumentasi/{dokId}", pirHandler.UpdateDokumentasi)
 			r.Delete("/pir/dokumentasi/{dokId}", pirHandler.DeleteDokumentasi)
 
 			// Survey Step 2 (PIC)

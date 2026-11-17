@@ -205,3 +205,27 @@ func (h *PIRHandler) DeleteDokumentasi(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, map[string]string{"message": "Dokumentasi berhasil dihapus"}, nil)
 }
 
+func (h *PIRHandler) UpdateDokumentasi(w http.ResponseWriter, r *http.Request) {
+	dokID := chi.URLParam(r, "dokId")
+	if dokID == "" {
+		response.Error(w, http.StatusBadRequest, "BAD_REQUEST", "ID dokumentasi dibutuhkan", nil)
+		return
+	}
+
+	var req struct {
+		Keterangan string `json:"keterangan"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "BAD_REQUEST", "Body tidak valid", nil)
+		return
+	}
+
+	if err := h.Service.UpdateDokumentasi(r.Context(), dokID, req.Keterangan); err != nil {
+		response.Error(w, http.StatusInternalServerError, "DB_ERROR", err.Error(), nil)
+		return
+	}
+
+	response.Success(w, map[string]string{"message": "Keterangan dokumentasi berhasil diperbarui"}, nil)
+}
+
+

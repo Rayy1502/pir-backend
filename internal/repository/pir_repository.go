@@ -24,18 +24,45 @@ func (r *PIRRepository) Create(ctx context.Context, req *model.CreatePIRRequest,
 		status = "draft"
 	}
 
+	disiapkanOleh := req.DisiapkanOleh
+	if disiapkanOleh == "" {
+		disiapkanOleh = "Budi Pratama"
+	}
+	disiapkanJabatan := req.DisiapkanJabatan
+	if disiapkanJabatan == "" {
+		disiapkanJabatan = "TKNO Perencanaan & Tata Kelola TI"
+	}
+	direviewOleh := req.DireviewOleh
+	if direviewOleh == "" {
+		direviewOleh = "Rahmat Hidayat"
+	}
+	direviewJabatan := req.DireviewJabatan
+	if direviewJabatan == "" {
+		direviewJabatan = "Senior Engineer Perencanaan & Tata Kelola TI"
+	}
+	disetujuiOleh := req.DisetujuiOleh
+	if disetujuiOleh == "" {
+		disetujuiOleh = "Ahmad Fauzi"
+	}
+	disetujuiJabatan := req.DisetujuiJabatan
+	if disetujuiJabatan == "" {
+		disetujuiJabatan = "VP Departemen Teknologi Informasi PSP"
+	}
+
 	// 1. Insert ke pir_form
 	query := `
 		INSERT INTO pir_form (
 			proyek_id, tujuan_awal, metode, catatan_kondisi,
 			nama_narasumber, jabatan_narasumber, daftar_pertanyaan,
-			kesimpulan_wawancara, responden, status, created_by
+			kesimpulan_wawancara, responden, status, created_by,
+			disiapkan_oleh, disiapkan_jabatan, direview_oleh, direview_jabatan, disetujui_oleh, disetujui_jabatan
 		)
 		OUTPUT INSERTED.id, INSERTED.created_at, INSERTED.updated_at
 		VALUES (
 			@proyek_id, @tujuan_awal, @metode, @catatan_kondisi,
 			@nama_narasumber, @jabatan_narasumber, @daftar_pertanyaan,
-			@kesimpulan_wawancara, @responden, @status, @created_by
+			@kesimpulan_wawancara, @responden, @status, @created_by,
+			@disiapkan_oleh, @disiapkan_jabatan, @direview_oleh, @direview_jabatan, @disetujui_oleh, @disetujui_jabatan
 		)
 	`
 
@@ -59,6 +86,12 @@ func (r *PIRRepository) Create(ctx context.Context, req *model.CreatePIRRequest,
 		sql.Named("responden", req.Responden),
 		sql.Named("status", status),
 		sql.Named("created_by", createdByVal),
+		sql.Named("disiapkan_oleh", disiapkanOleh),
+		sql.Named("disiapkan_jabatan", disiapkanJabatan),
+		sql.Named("direview_oleh", direviewOleh),
+		sql.Named("direview_jabatan", direviewJabatan),
+		sql.Named("disetujui_oleh", disetujuiOleh),
+		sql.Named("disetujui_jabatan", disetujuiJabatan),
 	).Scan(&id, &form.CreatedAt, &form.UpdatedAt)
 
 	if err != nil {
@@ -76,6 +109,12 @@ func (r *PIRRepository) Create(ctx context.Context, req *model.CreatePIRRequest,
 	form.KesimpulanWawancara = req.KesimpulanWawancara
 	form.Responden = req.Responden
 	form.Status = status
+	form.DisiapkanOleh = disiapkanOleh
+	form.DisiapkanJabatan = disiapkanJabatan
+	form.DireviewOleh = direviewOleh
+	form.DireviewJabatan = direviewJabatan
+	form.DisetujuiOleh = disetujuiOleh
+	form.DisetujuiJabatan = disetujuiJabatan
 	if createdBy != "" {
 		form.CreatedBy = &createdBy
 	}
@@ -99,6 +138,9 @@ func (r *PIRRepository) GetByID(ctx context.Context, id string) (*model.PIRForm,
 			f.nama_narasumber, f.jabatan_narasumber, f.daftar_pertanyaan,
 			f.kesimpulan_wawancara, f.responden, f.status, f.created_by,
 			f.created_at, f.updated_at, f.approved_by, f.approved_at,
+			ISNULL(f.disiapkan_oleh, 'Budi Pratama'), ISNULL(f.disiapkan_jabatan, 'TKNO Perencanaan & Tata Kelola TI'),
+			ISNULL(f.direview_oleh, 'Rahmat Hidayat'), ISNULL(f.direview_jabatan, 'Senior Engineer Perencanaan & Tata Kelola TI'),
+			ISNULL(f.disetujui_oleh, 'Ahmad Fauzi'), ISNULL(f.disetujui_jabatan, 'VP Departemen Teknologi Informasi PSP'),
 			p.id, p.nama_kegiatan, p.kategori, p.unit_kerja, p.vendor, p.tanggal_go_live, p.status_pir
 		FROM pir_form f
 		JOIN proyek p ON f.proyek_id = p.id
@@ -115,6 +157,9 @@ func (r *PIRRepository) GetByID(ctx context.Context, id string) (*model.PIRForm,
 		&form.NamaNarasumber, &form.JabatanNarasumber, &form.DaftarPertanyaan,
 		&form.KesimpulanWawancara, &form.Responden, &form.Status, &createdByUID,
 		&form.CreatedAt, &form.UpdatedAt, &appBy, &appAt,
+		&form.DisiapkanOleh, &form.DisiapkanJabatan,
+		&form.DireviewOleh, &form.DireviewJabatan,
+		&form.DisetujuiOleh, &form.DisetujuiJabatan,
 		&pID, &p.NamaKegiatan, &p.Kategori, &p.UnitKerja, &p.Vendor, &p.TanggalGoLive, &p.StatusPIR,
 	)
 	if err != nil {
@@ -149,6 +194,9 @@ func (r *PIRRepository) getByIDWithNullCreatedBy(ctx context.Context, id string)
 			ISNULL(f.nama_narasumber, ''), ISNULL(f.jabatan_narasumber, ''), ISNULL(f.daftar_pertanyaan, ''),
 			ISNULL(f.kesimpulan_wawancara, ''), ISNULL(f.responden, ''), ISNULL(f.status, 'draft'),
 			f.created_at, f.updated_at, f.approved_by, f.approved_at,
+			ISNULL(f.disiapkan_oleh, 'Budi Pratama'), ISNULL(f.disiapkan_jabatan, 'TKNO Perencanaan & Tata Kelola TI'),
+			ISNULL(f.direview_oleh, 'Rahmat Hidayat'), ISNULL(f.direview_jabatan, 'Senior Engineer Perencanaan & Tata Kelola TI'),
+			ISNULL(f.disetujui_oleh, 'Ahmad Fauzi'), ISNULL(f.disetujui_jabatan, 'VP Departemen Teknologi Informasi PSP'),
 			p.id, p.nama_kegiatan, p.kategori, p.unit_kerja, ISNULL(p.vendor, ''), p.tanggal_go_live, p.status_pir
 		FROM pir_form f
 		JOIN proyek p ON f.proyek_id = p.id
@@ -165,6 +213,9 @@ func (r *PIRRepository) getByIDWithNullCreatedBy(ctx context.Context, id string)
 		&form.NamaNarasumber, &form.JabatanNarasumber, &form.DaftarPertanyaan,
 		&form.KesimpulanWawancara, &form.Responden, &form.Status,
 		&form.CreatedAt, &form.UpdatedAt, &appBy, &appAt,
+		&form.DisiapkanOleh, &form.DisiapkanJabatan,
+		&form.DireviewOleh, &form.DireviewJabatan,
+		&form.DisetujuiOleh, &form.DisetujuiJabatan,
 		&pID, &p.NamaKegiatan, &p.Kategori, &p.UnitKerja, &p.Vendor, &p.TanggalGoLive, &p.StatusPIR,
 	)
 	if err != nil {
@@ -236,6 +287,12 @@ func (r *PIRRepository) Update(ctx context.Context, id string, req *model.Update
 		    kesimpulan_wawancara = @kesimpulan_wawancara,
 		    responden = @responden,
 		    status = @status,
+		    disiapkan_oleh = CASE WHEN @disiapkan_oleh <> '' THEN @disiapkan_oleh ELSE disiapkan_oleh END,
+		    disiapkan_jabatan = CASE WHEN @disiapkan_jabatan <> '' THEN @disiapkan_jabatan ELSE disiapkan_jabatan END,
+		    direview_oleh = CASE WHEN @direview_oleh <> '' THEN @direview_oleh ELSE direview_oleh END,
+		    direview_jabatan = CASE WHEN @direview_jabatan <> '' THEN @direview_jabatan ELSE direview_jabatan END,
+		    disetujui_oleh = CASE WHEN @disetujui_oleh <> '' THEN @disetujui_oleh ELSE disetujui_oleh END,
+		    disetujui_jabatan = CASE WHEN @disetujui_jabatan <> '' THEN @disetujui_jabatan ELSE disetujui_jabatan END,
 		    updated_at = SYSUTCDATETIME()
 		WHERE id = @id
 	`
@@ -250,6 +307,12 @@ func (r *PIRRepository) Update(ctx context.Context, id string, req *model.Update
 		sql.Named("kesimpulan_wawancara", req.KesimpulanWawancara),
 		sql.Named("responden", req.Responden),
 		sql.Named("status", status),
+		sql.Named("disiapkan_oleh", req.DisiapkanOleh),
+		sql.Named("disiapkan_jabatan", req.DisiapkanJabatan),
+		sql.Named("direview_oleh", req.DireviewOleh),
+		sql.Named("direview_jabatan", req.DireviewJabatan),
+		sql.Named("disetujui_oleh", req.DisetujuiOleh),
+		sql.Named("disetujui_jabatan", req.DisetujuiJabatan),
 	)
 	if err != nil {
 		return err
@@ -343,4 +406,11 @@ func (r *PIRRepository) DeleteDokumentasi(ctx context.Context, id string) error 
 	_, err := r.DB.ExecContext(ctx, query, sql.Named("id", id))
 	return err
 }
+
+func (r *PIRRepository) UpdateDokumentasiKeterangan(ctx context.Context, id string, keterangan string) error {
+	query := `UPDATE pir_dokumentasi SET keterangan = @keterangan WHERE id = @id`
+	_, err := r.DB.ExecContext(ctx, query, sql.Named("id", id), sql.Named("keterangan", keterangan))
+	return err
+}
+
 

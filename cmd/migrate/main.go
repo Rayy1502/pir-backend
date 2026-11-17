@@ -92,6 +92,30 @@ func main() {
 	}
 	fmt.Println("✅ Migrasi 000005 berhasil dijalankan!")
 
+	// 6. Jalankan migrasi 6 (survey_kategori_and_badge)
+	fmt.Println("\n⏳ Menjalankan migrasi 000006_survey_kategori_and_badge.up.sql...")
+	m6Path := filepath.Join("migrations", "000006_survey_kategori_and_badge.up.sql")
+	sql6, err := os.ReadFile(m6Path)
+	if err != nil {
+		log.Fatalf("Gagal membaca %s: %v", m6Path, err)
+	}
+	if _, err := database.ExecContext(ctx, string(sql6)); err != nil {
+		log.Fatalf("Gagal eksekusi migrasi 6: %v", err)
+	}
+	fmt.Println("✅ Migrasi 000006 berhasil dijalankan!")
+
+	// 7. Jalankan migrasi 7 (pir_pejabat_pengesahan)
+	fmt.Println("\n⏳ Menjalankan migrasi 000007_pir_pejabat_pengesahan.up.sql...")
+	m7Path := filepath.Join("migrations", "000007_pir_pejabat_pengesahan.up.sql")
+	sql7, err := os.ReadFile(m7Path)
+	if err != nil {
+		log.Fatalf("Gagal membaca %s: %v", m7Path, err)
+	}
+	if _, err := database.ExecContext(ctx, string(sql7)); err != nil {
+		log.Fatalf("Gagal eksekusi migrasi 7: %v", err)
+	}
+	fmt.Println("✅ Migrasi 000007 berhasil dijalankan!")
+
 	// 6. Verifikasi kolom di pir_form dan laporan_pir
 	fmt.Println("\n🔍 Kolom di pir_form:")
 	cols, err := database.QueryContext(ctx, `

@@ -19,6 +19,14 @@ type PIRForm struct {
 	CreatedBy           *string    `json:"created_by,omitempty"`
 	CreatedAt           time.Time  `json:"created_at"`
 	UpdatedAt           time.Time  `json:"updated_at"`
+
+	// Pejabat Pengesahan Dokumen PIR (Berita Acara)
+	DisiapkanOleh    string `json:"disiapkan_oleh"`
+	DisiapkanJabatan string `json:"disiapkan_jabatan"`
+	DireviewOleh     string `json:"direview_oleh"`
+	DireviewJabatan  string `json:"direview_jabatan"`
+	DisetujuiOleh    string `json:"disetujui_oleh"`
+	DisetujuiJabatan string `json:"disetujui_jabatan"`
 	
 	// Joined Proyek detail
 	Proyek              *Proyek    `json:"proyek,omitempty"`
@@ -40,6 +48,14 @@ type CreatePIRRequest struct {
 	KesimpulanWawancara string `json:"kesimpulan_wawancara"`
 	Responden           string `json:"responden"`
 	Status              string `json:"status"` // 'draft' or 'submitted'
+
+	// Pejabat Pengesahan Dokumen PIR
+	DisiapkanOleh    string `json:"disiapkan_oleh"`
+	DisiapkanJabatan string `json:"disiapkan_jabatan"`
+	DireviewOleh     string `json:"direview_oleh"`
+	DireviewJabatan  string `json:"direview_jabatan"`
+	DisetujuiOleh    string `json:"disetujui_oleh"`
+	DisetujuiJabatan string `json:"disetujui_jabatan"`
 }
 
 type UpdatePIRRequest struct {
@@ -53,6 +69,14 @@ type UpdatePIRRequest struct {
 	KesimpulanWawancara string `json:"kesimpulan_wawancara"`
 	Responden           string `json:"responden"`
 	Status              string `json:"status"`
+
+	// Pejabat Pengesahan Dokumen PIR
+	DisiapkanOleh    string `json:"disiapkan_oleh"`
+	DisiapkanJabatan string `json:"disiapkan_jabatan"`
+	DireviewOleh     string `json:"direview_oleh"`
+	DireviewJabatan  string `json:"direview_jabatan"`
+	DisetujuiOleh    string `json:"disetujui_oleh"`
+	DisetujuiJabatan string `json:"disetujui_jabatan"`
 }
 
 type PIRDokumentasi struct {
