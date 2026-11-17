@@ -19,6 +19,7 @@ import (
 	"github.com/Rayy1502/pir-backend/internal/handler"
 	"github.com/Rayy1502/pir-backend/internal/middleware"
 	"github.com/Rayy1502/pir-backend/internal/repository"
+	"github.com/Rayy1502/pir-backend/internal/scheduler"
 	"github.com/Rayy1502/pir-backend/internal/service"
 	"github.com/Rayy1502/pir-backend/pkg/response"
 )
@@ -43,6 +44,12 @@ func main() {
 	surveyRepo := repository.NewSurveyRepository(database)
 	laporanRepo := repository.NewLaporanRepository(database)
 	tindakLanjutRepo := repository.NewTindakLanjutRepository(database)
+	notifikasiRepo := repository.NewNotifikasiRepository(database)
+
+	// Background Scheduler (Evaluasi notifikasi & deadline PIR)
+	notifScheduler := scheduler.NewNotificationScheduler(database, notifikasiRepo, 1*time.Hour)
+	notifScheduler.Start()
+	defer notifScheduler.Stop()
 
 	// 4. Init services
 	authService := service.NewAuthService(cfg, userRepo)
@@ -52,6 +59,7 @@ func main() {
 	surveyService := service.NewSurveyService(surveyRepo, pirRepo)
 	laporanService := service.NewLaporanService(laporanRepo, proyekRepo)
 	tindakLanjutService := service.NewTindakLanjutService(tindakLanjutRepo)
+	notifikasiService := service.NewNotifikasiService(notifikasiRepo, notifScheduler)
 
 	// 5. Init handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -62,6 +70,7 @@ func main() {
 	surveyHandler := handler.NewSurveyHandler(surveyService)
 	laporanHandler := handler.NewLaporanHandler(laporanService, "./uploads")
 	tindakLanjutHandler := handler.NewTindakLanjutHandler(tindakLanjutService, "./uploads")
+	notifikasiHandler := handler.NewNotifikasiHandler(notifikasiService)
 
 	// 6. Setup router
 	r := chi.NewRouter()
@@ -171,6 +180,13 @@ func main() {
 			r.Post("/tindak-lanjut", tindakLanjutHandler.Create)
 			r.Put("/tindak-lanjut/{id}", tindakLanjutHandler.Update)
 			r.Post("/tindak-lanjut/{id}/bukti", tindakLanjutHandler.UploadBukti)
+
+			// Notifikasi (Milestone M9)
+			r.Get("/notifikasi", notifikasiHandler.GetAll)
+			r.Get("/notifikasi/unread-count", notifikasiHandler.GetUnreadCount)
+			r.Put("/notifikasi/{id}/read", notifikasiHandler.MarkAsRead)
+			r.Put("/notifikasi/read-all", notifikasiHandler.MarkAllAsRead)
+			r.Post("/notifikasi/trigger", notifikasiHandler.TriggerEvaluation)
 		})
 	})
 
